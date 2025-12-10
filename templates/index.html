@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teradata MCP Agent</title>
+    <script src="/static/chart.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; height: 100vh; display: flex; flex-direction: column; }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        .header { padding: 15px 25px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .header h1 { font-size: 18px; font-weight: 600; color: #333; }
+        .status-bar { display: flex; gap: 15px; font-size: 13px; color: #666; }
+        .status-item { display: flex; align-items: center; gap: 6px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot.green { background: #4caf50; }
+        .dot.red { background: #f44336; }
+        .dot.yellow { background: #ff9800; }
+
+        .settings-btn { padding: 6px 12px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; cursor: pointer; }
+        .settings-btn:hover { background: #e0e0e0; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { font-size: 18px; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
+        .modal-close:hover { color: #333; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500; color: #555; }
+        .form-group select, .form-group input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #f27340; }
+
+        .btn-primary { background: #f27340; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+        .btn-primary:hover { background: #d65a2e; }
+        .btn-secondary { background: #f0f0f0; color: #333; border: 1px solid #ddd; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; margin-left: 10px; }
+        .btn-secondary:hover { background: #e0e0e0; }
+
+        .content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-container { flex: 1; overflow-y: auto; padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; }
+
+        .msg { margin-bottom: 16px; display: flex; }
+        .msg.user { justify-content: flex-end; }
+        .msg-content { max-width: 100%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; font-size: 14px; }
+        .msg.user .msg-content { background: #394850; color: white; border-bottom-right-radius: 4px; }
+        .msg.assistant .msg-content { background: #fff; border: 1px solid #e0e0e0; border-bottom-left-radius: 4px; }
+        .msg.loading .msg-content { display: flex; align-items: center; padding: 0; background: transparent; border: none; white-space: normal; }
+
+        .multi-tool-box { margin-top: 10px; padding: 12px; background: #fef3ef; border-left: 4px solid #f27340; border-radius: 4px; font-size: 13px; }
+        .multi-tool-box strong { color: #d65a2e; display: block; margin-bottom: 8px; }
+        .multi-tool-box .tool-item { padding: 4px 0; color: #555; }
+
+        .mcp-result { margin-top: 12px; padding: 12px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; max-height: 300px; overflow-y: auto; }
+        .mcp-badge { display: inline-block; background: #4caf50; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-bottom: 8px; }
+        .mcp-toggle { background: none; border: 1px solid #ddd; color: #666; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-top: 10px; }
+        .mcp-toggle:hover { background: #f0f0f0; }
+        .mcp-details { display: none; }
+        .mcp-details.show { display: block; }
+
+        .input-area { padding: 20px; background: #fff; border-top: 1px solid #e0e0e0; }
+        .input-wrapper { max-width: 900px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+        .input-wrapper textarea { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 44px; max-height: 200px; }
+        .input-wrapper textarea:focus { outline: none; border-color: #f27340; }
+        .input-wrapper button { padding: 12px 24px; background: #f27340; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+        .input-wrapper button:hover { background: #d65a2e; }
+        .chart-save-btn { background: #4CAF50; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-top: 8px; }
+        .chart-save-btn:hover { background: #45a049; }
+
+        .sidebar { width: 250px; background: #fff; border-right: 1px solid #e0e0e0; overflow-y: auto; flex-shrink: 0; }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid #e0e0e0; font-size: 14px; font-weight: 600; color: #333; }
+        .tools-list { padding: 10px; }
+        .tool-item { padding: 10px 12px; margin-bottom: 6px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; color: #333; cursor: pointer; transition: all 0.2s; }
+        .tool-item:hover { background: #e9ecef; border-color: #f27340; }
+        .tool-item-name { font-weight: 500; display: block; margin-bottom: 4px; }
+        .tool-item-desc { font-size: 11px; color: #666; line-height: 1.4; }
+
+        .progress-text { display: inline-block; font-size: 13px; color: #666; white-space: nowrap; }
+        .timer { margin-left: 12px; font-size: 12px; color: #999; font-family: monospace; white-space: nowrap; }
+
+        .info-panel { max-width: 900px; margin: 0 auto; padding: 15px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; }
+        .info-panel h3 { font-size: 13px; color: #666; margin-bottom: 10px; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 13px; }
+        .info-item { padding: 8px 12px; background: #f8f9fa; border-radius: 6px; }
+        .info-item label { color: #666; font-size: 11px; display: block; margin-bottom: 2px; }
+        .info-item span { color: #333; font-weight: 500; }
+
+        .error-msg { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; }
+
+        .chart-container { margin-top: 15px; padding: 15px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
+        .chart-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px; text-align: center; }
+        .chart-wrapper { position: relative; height: 300px; width: 100%; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 15px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Teradata MCP Agent</h1>
+        <div class="status-bar">
+            <div class="status-item"><span class="dot yellow" id="mcpDot"></span>MCP: <span id="mcpStatus">checking...</span></div>
+            <div class="status-item"><span class="dot yellow" id="llmDot"></span>LLM: <span id="llmStatus">checking...</span></div>
+        </div>
+        <button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header">Available Tools</div>
+            <div class="tools-list" id="toolsList">Loading tools...</div>
+        </div>
+
+        <div class="content-area">
+            <div class="chat-container" id="chat">
+                <div class="info-panel" id="infoPanel">
+                    <h3>Configuration</h3>
+                    <div class="info-grid" id="configInfo">Loading...</div>
+                    <div id="mcpError"></div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea id="input" placeholder="Ask about your Teradata database..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();send();}"></textarea>
+                    <button onclick="send()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="modal-close" onclick="closeSettings()">&times;</button>
+            </div>
+
+            <div class="form-group">
+                <label>LLM Provider</label>
+                <select id="llmProvider" onchange="updateModelOptions()">
+                    <option value="local_llm">Local LLM</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="nvidia_nim">NVIDIA NIM</option>
+                </select>
+            </div>
+
+            <!-- Local LLM Settings (also used by NVIDIA NIM) -->
+            <div id="ollamaSettings" style="display:none;">
+                <div class="form-group">
+                    <label>API Endpoint URL</label>
+                    <input type="text" id="ollamaUrl" placeholder="e.g., http://127.0.0.1:11434 or http://127.0.0.1:8000/v1">
+                    <small style="color: #888; font-size: 12px; margin-top: 4px; display: block;">
+                        Local LLM server endpoint or OpenAI-compatible API endpoint
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>Model Name</label>
+                    <input type="text" id="ollamaModel" placeholder="e.g., deepseek-r1:32b or meta/llama-3.1-8b-instruct">
+                </div>
+            </div>
+
+            <!-- Gemini Settings -->
+            <div id="geminiSettings" style="display:none;">
+                <div class="form-group">
+                    <label>Gemini API Key</label>
+                    <input type="password" id="geminiApiKey" placeholder="Your Gemini API key">
+                </div>
+                <div class="form-group">
+                    <label>Gemini Model</label>
+                    <input type="text" id="geminiModel" placeholder="e.g., gemini-2.5-flash">
+                </div>
+            </div>
+
+            <!-- OpenAI Settings -->
+            <div id="openaiSettings" style="display:none;">
+                <div class="form-group">
+                    <label>OpenAI API Key</label>
+                    <input type="password" id="openaiApiKey" placeholder="Your OpenAI API key">
+                </div>
+                <div class="form-group">
+                    <label>OpenAI Model</label>
+                    <input type="text" id="openaiModel" placeholder="e.g., gpt-4">
+                </div>
+            </div>
+
+            <!-- NVIDIA NIM Settings (shares Local LLM config) -->
+            <div id="nvidiaNimSettings" style="display:none;">
+                <p style="color: #888; font-size: 14px; margin: 10px 0;">
+                    NVIDIA NIM uses the same configuration as Local LLM (see above).
+                    Make sure to set the URL to your NIM's OpenAI-compatible endpoint.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>MCP Server URL</label>
+                <input type="text" id="mcpUrl" placeholder="e.g., http://127.0.0.1:8001">
+            </div>
+
+            <div class="form-group">
+                <label>MCP Endpoint</label>
+                <input type="text" id="mcpEndpoint" placeholder="e.g., /mcp">
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button class="btn-primary" onclick="saveSettings()">Save & Apply</button>
+                <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let history = [];
+
+        async function init() {
+            console.log('Initializing...');
+
+            try {
+                const status = await Promise.race([
+                    fetch('/api/status').then(r => r.json()),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Status timeout')), 5000))
+                ]);
+
+                // Determine which model to show based on active provider
+                let activeModel = 'N/A';
+                if (status.llm_provider === 'local_llm') {
+                    activeModel = status.local_llm_model || 'N/A';
+                } else if (status.llm_provider === 'gemini') {
+                    activeModel = status.gemini_model || 'N/A';
+                } else if (status.llm_provider === 'openai') {
+                    activeModel = status.openai_model || 'N/A';
+                } else if (status.llm_provider === 'nvidia_nim') {
+                    activeModel = status.local_llm_model || 'N/A';  // NIM uses Local LLM config
+                }
+
+                document.getElementById('configInfo').innerHTML = `
+                    <div class="info-item"><label>MCP Server</label><span>${status.mcp_url}</span></div>
+                    <div class="info-item"><label>LLM Model</label><span>${activeModel}</span></div>
+                `;
+            } catch (e) {
+                console.error('Status error:', e);
+                document.getElementById('configInfo').innerHTML = `<div class="error-msg">Failed to load config: ${e.message}</div>`;
+            }
+
+            // Check MCP
+            try {
+                const r = await Promise.race([
+                    fetch('/api/mcp/health'),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('MCP timeout')), 5000))
+                ]);
+                const d = await r.json();
+                if (r.ok && !d.error) {
+                    document.getElementById('mcpDot').className = 'dot green';
+                    document.getElementById('mcpStatus').textContent = `connected (${d.tools_count} tools)`;
+                    loadTools();
+                } else {
+                    throw new Error(d.error || 'Connection failed');
+                }
+            } catch (e) {
+                console.error('MCP error:', e);
+                document.getElementById('mcpDot').className = 'dot red';
+                document.getElementById('mcpStatus').textContent = 'error';
+                document.getElementById('mcpError').innerHTML = `<div class="error-msg">MCP: ${e.message}</div>`;
+            }
+
+            // Check LLM
+            try {
+                const r = await Promise.race([
+                    fetch('/api/llm/health'),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('LLM timeout')), 5000))
+                ]);
+                const d = await r.json();
+                if (r.ok) {
+                    document.getElementById('llmDot').className = 'dot green';
+                    document.getElementById('llmStatus').textContent = d.provider || 'connected';
+                } else throw new Error();
+            } catch (e) {
+                console.error('LLM error:', e);
+                document.getElementById('llmDot').className = 'dot red';
+                document.getElementById('llmStatus').textContent = 'error';
+            }
+
+            console.log('Initialization complete');
+        }
+
+        async function loadTools() {
+            try {
+                const r = await fetch('/api/mcp/tools');
+                const d = await r.json();
+                const tools = d.tools || [];
+                if (tools.length > 0) {
+                    document.getElementById('toolsList').innerHTML = tools.map(t => {
+                        const desc = t.description || 'No description available';
+                        return `<div class="tool-item" onclick="sendQ('Use the ${escapeHtml(t.name)} tool')">
+                            <span class="tool-item-name">${escapeHtml(t.name)}</span>
+                            <span class="tool-item-desc">${escapeHtml(desc)}</span>
+                        </div>`;
+                    }).join('');
+                } else {
+                    document.getElementById('toolsList').innerHTML = '<div style="padding: 10px; color: #999; font-size: 12px;">No tools available</div>';
+                }
+            } catch (e) {
+                console.error('Failed to load tools:', e);
+                document.getElementById('toolsList').innerHTML = '<div style="padding: 10px; color: #f44336; font-size: 12px;">Error loading tools</div>';
+            }
+        }
+
+        function sendQ(t) { document.getElementById('input').value = t; send(); }
+
+        // New streaming version with progress updates
+        async function sendWithProgress() {
+            const input = document.getElementById('input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+
+            document.getElementById('infoPanel').style.display = 'none';
+            addMsg('user', msg);
+            const loadId = addLoading();
+
+            try {
+                const response = await fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg, history})
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let result = null;
+
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.substring(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const event = JSON.parse(data);
+                                if (event.type === 'progress') {
+                                    // Update progress text
+                                    updateProgress(loadId, event.data.detail);
+                                } else if (event.type === 'result') {
+                                    result = event.data;
+                                } else if (event.type === 'error') {
+                                    throw new Error(event.data.error);
+                                }
+                            } catch (e) {
+                                if (data !== '[DONE]') {
+                                    console.error('Failed to parse SSE data:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                removeLoading(loadId);
+
+                if (result) {
+                    // Process and display result (same as before)
+                    const { cleanText, charts } = processCharts(result.response);
+                    let content = escapeHtml(cleanText);
+
+                    if (charts.length > 0) {
+                        content += createChartHtml(charts);
+                    }
+
+                    if (result.all_tool_calls && result.all_tool_calls.length > 1) {
+                        content += `<div class="multi-tool-box">`;
+                        content += `<strong>✓ Executed ${result.all_tool_calls.length} operations:</strong>`;
+                        result.all_tool_calls.forEach((call, i) => {
+                            content += `<div class="tool-item">${i+1}. ${call.tool}</div>`;
+                        });
+                        content += `</div>`;
+                    }
+
+                    if (result.mcp_result) {
+                        const toggleId = 'mcp-' + Date.now();
+                        const toolName = result.all_tool_calls && result.all_tool_calls.length > 1
+                            ? `${result.all_tool_calls.length} tools`
+                            : result.mcp_call.tool;
+                        content += `<button class="mcp-toggle" onclick="toggleMcpDetails('${toggleId}')">Show raw data (${toolName})</button>`;
+
+                        if (result.all_tool_calls && result.all_tool_calls.length > 1) {
+                            let allResultsHtml = '';
+                            result.all_tool_calls.forEach((call, i) => {
+                                allResultsHtml += `<div class="mcp-result"><span class="mcp-badge">Tool ${i+1}: ${call.tool}</span><pre>${escapeHtml(JSON.stringify(call.result, null, 2))}</pre></div>`;
+                            });
+                            content += `<div id="${toggleId}" class="mcp-details">${allResultsHtml}</div>`;
+                        } else {
+                            content += `<div id="${toggleId}" class="mcp-details"><div class="mcp-result"><span class="mcp-badge">Tool: ${result.mcp_call.tool}</span><pre>${escapeHtml(JSON.stringify(result.mcp_result, null, 2))}</pre></div></div>`;
+                        }
+                    }
+
+                    addMsg('assistant', content, true);
+                    history.push({role: 'user', content: msg});
+                    let assistantContent = result.response;
+                    if (result.tool_result_for_history) {
+                        assistantContent += `\\n\\n[Tool Result Data]:\\n${result.tool_result_for_history}`;
+                    }
+                    history.push({role: 'assistant', content: assistantContent});
+                    if (history.length > 10) history = history.slice(-10);
+                }
+            } catch (e) {
+                removeLoading(loadId);
+                addMsg('assistant', 'Error: ' + e.message);
+            }
+        }
+
+        // Use streaming with REAL progress from backend
+        async function send() {
+            const input = document.getElementById('input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+
+            document.getElementById('infoPanel').style.display = 'none';
+            addMsg('user', msg);
+            const loadId = addLoading();
+
+            try {
+                const response = await fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg, history})
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let result = null;
+
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.substring(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const event = JSON.parse(data);
+                                if (event.type === 'progress') {
+                                    // Update with REAL progress from backend!
+                                    updateProgress(loadId, event.data.detail);
+                                } else if (event.type === 'result') {
+                                    result = event.data;
+                                } else if (event.type === 'error') {
+                                    throw new Error(event.data.error);
+                                }
+                            } catch (e) {
+                                if (data !== '[DONE]') {
+                                    console.error('Failed to parse SSE data:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                removeLoading(loadId);
+
+                if (!result) {
+                    throw new Error('No result received from server');
+                }
+
+                const d = result;
+
+                if (d.error) {
+                    addMsg('assistant', 'Error: ' + d.error);
+                } else {
+                    // Process charts from response
+                    const { cleanText, charts } = processCharts(d.response);
+                    let content = escapeHtml(cleanText);
+
+                    // Add charts if any
+                    if (charts.length > 0) {
+                        content += createChartHtml(charts);
+                    }
+
+                    // Show all tool calls if multiple
+                    if (d.all_tool_calls && d.all_tool_calls.length > 1) {
+                        content += `<div class="multi-tool-box">`;
+                        content += `<strong>✓ Executed ${d.all_tool_calls.length} operations:</strong>`;
+                        d.all_tool_calls.forEach((call, i) => {
+                            content += `<div class="tool-item">${i+1}. ${call.tool}</div>`;
+                        });
+                        content += `</div>`;
+                    }
+
+                    if (d.mcp_result) {
+                        const toggleId = 'mcp-' + Date.now();
+                        const toolName = d.all_tool_calls && d.all_tool_calls.length > 1
+                            ? `${d.all_tool_calls.length} tools`
+                            : d.mcp_call.tool;
+                        content += `<button class="mcp-toggle" onclick="toggleMcpDetails('${toggleId}')">Show raw data (${toolName})</button>`;
+
+                        if (d.all_tool_calls && d.all_tool_calls.length > 1) {
+                            // Show all results
+                            let allResultsHtml = '';
+                            d.all_tool_calls.forEach((call, i) => {
+                                allResultsHtml += `<div class="mcp-result"><span class="mcp-badge">Tool ${i+1}: ${call.tool}</span><pre>${escapeHtml(JSON.stringify(call.result, null, 2))}</pre></div>`;
+                            });
+                            content += `<div id="${toggleId}" class="mcp-details">${allResultsHtml}</div>`;
+                        } else {
+                            content += `<div id="${toggleId}" class="mcp-details"><div class="mcp-result"><span class="mcp-badge">Tool: ${d.mcp_call.tool}</span><pre>${escapeHtml(JSON.stringify(d.mcp_result, null, 2))}</pre></div></div>`;
+                        }
+                    }
+                    addMsg('assistant', content, true);
+                    history.push({role: 'user', content: msg});
+                    // Include tool result data in history for follow-up questions
+                    let assistantContent = d.response;
+                    if (d.tool_result_for_history) {
+                        assistantContent += `\\n\\n[Tool Result Data]:\\n${d.tool_result_for_history}`;
+                    }
+                    history.push({role: 'assistant', content: assistantContent});
+                    // Keep more history for context, but trim if too long
+                    if (history.length > 10) history = history.slice(-10);
+                }
+            } catch (e) {
+                removeLoading(loadId);
+                addMsg('assistant', 'Error: ' + e.message);
+            }
+        }
+
+        // Fallback: Keep old non-streaming function for compatibility
+        async function sendOld() {
+            const input = document.getElementById('input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+
+            document.getElementById('infoPanel').style.display = 'none';
+            addMsg('user', msg);
+            const loadId = addLoading();
+
+            try {
+                const r = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg, history})
+                });
+                const d = await r.json();
+                removeLoading(loadId);
+
+                if (d.error) {
+                    addMsg('assistant', 'Error: ' + d.error);
+                } else {
+                    // Process charts from response
+                    const { cleanText, charts } = processCharts(d.response);
+                    let content = escapeHtml(cleanText);
+
+                    // Add charts if any
+                    if (charts.length > 0) {
+                        content += createChartHtml(charts);
+                    }
+
+                    // Show all tool calls if multiple
+                    if (d.all_tool_calls && d.all_tool_calls.length > 1) {
+                        content += `<div class="multi-tool-box">`;
+                        content += `<strong>✓ Executed ${d.all_tool_calls.length} operations:</strong>`;
+                        d.all_tool_calls.forEach((call, i) => {
+                            content += `<div class="tool-item">${i+1}. ${call.tool}</div>`;
+                        });
+                        content += `</div>`;
+                    }
+
+                    if (d.mcp_result) {
+                        const toggleId = 'mcp-' + Date.now();
+                        const toolName = d.all_tool_calls && d.all_tool_calls.length > 1
+                            ? `${d.all_tool_calls.length} tools`
+                            : d.mcp_call.tool;
+                        content += `<button class="mcp-toggle" onclick="toggleMcpDetails('${toggleId}')">Show raw data (${toolName})</button>`;
+
+                        if (d.all_tool_calls && d.all_tool_calls.length > 1) {
+                            // Show all results
+                            let allResultsHtml = '';
+                            d.all_tool_calls.forEach((call, i) => {
+                                allResultsHtml += `<div class="mcp-result"><span class="mcp-badge">Tool ${i+1}: ${call.tool}</span><pre>${escapeHtml(JSON.stringify(call.result, null, 2))}</pre></div>`;
+                            });
+                            content += `<div id="${toggleId}" class="mcp-details">${allResultsHtml}</div>`;
+                        } else {
+                            content += `<div id="${toggleId}" class="mcp-details"><div class="mcp-result"><span class="mcp-badge">Tool: ${d.mcp_call.tool}</span><pre>${escapeHtml(JSON.stringify(d.mcp_result, null, 2))}</pre></div></div>`;
+                        }
+                    }
+                    addMsg('assistant', content, true);
+                    history.push({role: 'user', content: msg});
+                    // Include tool result data in history for follow-up questions
+                    let assistantContent = d.response;
+                    if (d.tool_result_for_history) {
+                        assistantContent += `\\n\\n[Tool Result Data]:\\n${d.tool_result_for_history}`;
+                    }
+                    history.push({role: 'assistant', content: assistantContent});
+                    // Keep more history for context, but trim if too long
+                    if (history.length > 10) history = history.slice(-10);
+                }
+            } catch (e) {
+                removeLoading(loadId);
+                addMsg('assistant', 'Error: ' + e.message);
+            }
+        }
+
+        function addMsg(role, content, isHtml = false) {
+            const chat = document.getElementById('chat');
+            const div = document.createElement('div');
+            div.className = 'msg ' + role;
+            div.innerHTML = `<div class="msg-content">${isHtml ? content : escapeHtml(content)}</div>`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function addLoading() {
+            const chat = document.getElementById('chat');
+            const id = 'load-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'msg assistant loading';
+            div.innerHTML = `
+                <div class="msg-content">
+                    <span class="progress-text" id="progress-${id}">Initializing...</span>
+                    <span class="timer" id="timer-${id}">0s</span>
+                </div>
+            `;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+
+            // Start timer
+            const startTime = Date.now();
+            const timerId = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const timerEl = document.getElementById('timer-' + id);
+                if (timerEl) {
+                    timerEl.textContent = elapsed + 's';
+                }
+            }, 1000);
+
+            // Store timer ID so we can clear it later
+            div.dataset.timerId = timerId;
+
+            return id;
+        }
+
+        function updateProgress(loadId, statusText) {
+            const progressEl = document.getElementById('progress-' + loadId);
+            if (progressEl) {
+                progressEl.textContent = statusText;
+            }
+        }
+
+        function removeLoading(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                // Clear the timer interval
+                if (el.dataset.timerId) {
+                    clearInterval(parseInt(el.dataset.timerId));
+                }
+                el.remove();
+            }
+        }
+        function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+        // Chart rendering
+        const chartInstances = {};
+        const defaultColors = ['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548', '#607D8B', '#F44336'];
+
+        function renderChart(canvasId, chartConfig) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            // Destroy existing chart if any
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+            }
+
+            const colors = chartConfig.colors || defaultColors;
+            const config = {
+                type: chartConfig.type || 'bar',
+                data: {
+                    labels: chartConfig.labels || [],
+                    datasets: [{
+                        label: chartConfig.title || 'Data',
+                        data: chartConfig.data || [],
+                        backgroundColor: chartConfig.type === 'line' ? colors[0] + '40' : colors.slice(0, chartConfig.data?.length || 10),
+                        borderColor: chartConfig.type === 'line' ? colors[0] : colors.slice(0, chartConfig.data?.length || 10),
+                        borderWidth: chartConfig.type === 'line' ? 2 : 1,
+                        fill: chartConfig.type === 'line',
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: ['pie', 'doughnut'].includes(chartConfig.type),
+                            position: 'right'
+                        },
+                        title: {
+                            display: false
+                        }
+                    },
+                    scales: ['pie', 'doughnut'].includes(chartConfig.type) ? {} : {
+                        y: { beginAtZero: true }
+                    }
+                }
+            };
+
+            chartInstances[canvasId] = new Chart(ctx, config);
+        }
+
+        function processCharts(text) {
+            const chartRegex = /```chart\\s*([\\s\\S]*?)```/g;
+            const charts = [];
+            let match;
+            let cleanText = text;
+
+            while ((match = chartRegex.exec(text)) !== null) {
+                try {
+                    const chartData = JSON.parse(match[1]);
+                    charts.push(chartData);
+                    cleanText = cleanText.replace(match[0], '');
+                } catch (e) {
+                    console.error('Failed to parse chart data:', e);
+                }
+            }
+
+            return { cleanText: cleanText.trim(), charts };
+        }
+
+        let chartCounter = 0;
+        function createChartHtml(charts) {
+            if (charts.length === 0) return '';
+
+            const baseId = Date.now();
+            const chartIds = charts.map((_, i) => `chart-${baseId}-${chartCounter++}`);
+
+            const chartsHtml = charts.map((chart, i) => {
+                return `
+                    <div class="chart-container">
+                        <div class="chart-title">${escapeHtml(chart.title || 'Chart')}</div>
+                        <div class="chart-wrapper">
+                            <canvas id="${chartIds[i]}"></canvas>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Schedule chart rendering after DOM update
+            setTimeout(() => {
+                charts.forEach((chart, i) => {
+                    renderChart(chartIds[i], chart);
+                });
+            }, 150);
+
+            return charts.length > 1 ? `<div class="chart-grid">${chartsHtml}</div>` : chartsHtml;
+        }
+
+        async function saveChart(canvasId, chartName) {
+            try {
+                console.log('Saving chart:', canvasId, chartName);
+                const canvas = document.getElementById(canvasId);
+                if (!canvas) {
+                    console.error('Canvas not found:', canvasId);
+                    alert('Chart not found: ' + canvasId);
+                    return;
+                }
+
+                console.log('Canvas found, converting to image...');
+                const imageData = canvas.toDataURL('image/png');
+                console.log('Image data length:', imageData.length);
+
+                const response = await fetch('/api/chart/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        image: imageData,
+                        name: chartName.replace(/[^a-z0-9]/gi, '_')
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('Response:', result);
+
+                if (result.status === 'ok') {
+                    alert(`Chart saved successfully!\\nPath: ${result.path}`);
+                } else {
+                    alert('Error saving chart: ' + (result.error || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error('Save chart error:', e);
+                alert('Error saving chart: ' + e.message);
+            }
+        }
+
+        function openSettings() {
+            // Load current settings
+            fetch('/api/status').then(r => r.json()).then(status => {
+                document.getElementById('llmProvider').value = status.llm_provider;
+
+                // Local LLM settings
+                document.getElementById('ollamaUrl').value = status.local_llm_url || '';
+                document.getElementById('ollamaModel').value = status.local_llm_model || '';
+
+                // Gemini settings
+                document.getElementById('geminiApiKey').value = status.gemini_api_key || '';
+                document.getElementById('geminiModel').value = status.gemini_model || '';
+
+                // OpenAI settings
+                document.getElementById('openaiApiKey').value = status.openai_api_key || '';
+                document.getElementById('openaiModel').value = status.openai_model || '';
+
+                const mcpUrl = status.mcp_url.replace(status.mcp_url.split('/').pop(), '');
+                document.getElementById('mcpUrl').value = mcpUrl.slice(0, -1);
+                document.getElementById('mcpEndpoint').value = '/' + status.mcp_url.split('/').pop();
+
+                updateModelOptions();
+                document.getElementById('settingsModal').classList.add('show');
+            });
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('show');
+        }
+
+        function updateModelOptions() {
+            const provider = document.getElementById('llmProvider').value;
+            // Show Local LLM settings for both local_llm and nvidia_nim (they share the same config)
+            document.getElementById('ollamaSettings').style.display = (provider === 'local_llm' || provider === 'nvidia_nim') ? 'block' : 'none';
+            document.getElementById('geminiSettings').style.display = provider === 'gemini' ? 'block' : 'none';
+            document.getElementById('openaiSettings').style.display = provider === 'openai' ? 'block' : 'none';
+            document.getElementById('nvidiaNimSettings').style.display = provider === 'nvidia_nim' ? 'block' : 'none';
+        }
+
+        async function saveSettings() {
+            const provider = document.getElementById('llmProvider').value;
+            const config = {
+                llm_provider: provider,
+                local_llm_url: document.getElementById('ollamaUrl').value,
+                local_llm_model: document.getElementById('ollamaModel').value,
+                gemini_api_key: document.getElementById('geminiApiKey').value,
+                gemini_model: document.getElementById('geminiModel').value,
+                openai_api_key: document.getElementById('openaiApiKey').value,
+                openai_model: document.getElementById('openaiModel').value,
+                mcp_url: document.getElementById('mcpUrl').value,
+                mcp_endpoint: document.getElementById('mcpEndpoint').value
+            };
+
+            try {
+                const response = await fetch('/api/config/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+                if (result.status === 'ok') {
+                    alert('Settings saved! Reloading...');
+                    closeSettings();
+                    location.reload();
+                } else {
+                    alert('Error saving settings: ' + (result.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error saving settings: ' + e.message);
+            }
+        }
+
+        function toggleMcpDetails(id) {
+            const el = document.getElementById(id);
+            const btn = el.previousElementSibling;
+            if (el.classList.contains('show')) {
+                el.classList.remove('show');
+                btn.textContent = btn.textContent.replace('Hide', 'Show');
+            } else {
+                el.classList.add('show');
+                btn.textContent = btn.textContent.replace('Show', 'Hide');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

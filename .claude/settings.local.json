@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(curl -s http://127.0.0.1:11434/api/tags)",
+      "Bash(chmod:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(ls:*)",
+      "Bash(./venv/bin/python:*)",
+      "Bash(find:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(pkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
