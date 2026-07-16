@@ -7,6 +7,26 @@ from prompts import get_system_prompt, get_summary_prompt
 from config import Config
 
 
+def extract_tool_call_json(llm_response):
+    """Extract a tool-call payload from the LLM response.
+
+    Primarily expects our ```mcp_call``` fence, but some tool-calling-tuned
+    models (e.g. Qwen/Hermes-style) ignore that instruction and emit their
+    own native <tool_call>{...}</tool_call> tag instead. Without this
+    fallback, that text doesn't match anything, gets passed straight through
+    as the "final answer", and the user sees raw JSON instead of a response.
+    """
+    match = re.search(r"```m[_-]?cp_call\s*(.*?)\s*```", llm_response, re.DOTALL)
+    if match:
+        return match.group(1)
+
+    match = re.search(r"<tool_call>\s*(.*?)\s*</tool_call>", llm_response, re.DOTALL)
+    if match:
+        return match.group(1)
+
+    return None
+
+
 def summarize_result(result):
     """Summarize a large result for LLM feedback"""
     result_str = json.dumps(result, indent=2)
@@ -79,13 +99,15 @@ def process_chat_request(user_message, history=None, progress_callback=None):
         llm_response = LLMProvider.call(system_prompt, current_message, current_history)
         print(f"[Chat] LLM response received: {llm_response[:200]}...")
 
-        # Check for MCP tool call (flexible pattern to handle typos like "m-cp_call")
-        mcp_match = re.search(r"```m[_-]?cp_call\s*(.*?)\s*```", llm_response, re.DOTALL)
+        # Check for MCP tool call (also tolerates alternate tags like <tool_call>)
+        mcp_match = extract_tool_call_json(llm_response)
 
         if mcp_match and tools:
             try:
-                mcp_call = json.loads(mcp_match.group(1))
-                requested_tool = mcp_call.get("tool", "")
+                mcp_call = json.loads(mcp_match)
+                # Some models use "name" instead of "tool" for the tool identifier
+                requested_tool = mcp_call.get("tool") or mcp_call.get("name", "")
+                mcp_call["tool"] = requested_tool
 
                 # Validate tool exists
                 valid_tool_names = [t['name'] for t in tools]
