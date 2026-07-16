@@ -144,14 +144,15 @@
                     <option value="gemini">Google Gemini</option>
                     <option value="openai">OpenAI</option>
                     <option value="nvidia_nim">NVIDIA NIM</option>
+                    <option value="lm_studio">LM Studio</option>
                 </select>
             </div>
 
-            <!-- Local LLM Settings (also used by NVIDIA NIM) -->
+            <!-- Local LLM Settings (also used by NVIDIA NIM and LM Studio) -->
             <div id="ollamaSettings" style="display:none;">
                 <div class="form-group">
                     <label>API Endpoint URL</label>
-                    <input type="text" id="ollamaUrl" placeholder="e.g., http://127.0.0.1:11434 or http://127.0.0.1:8000/v1">
+                    <input type="text" id="ollamaUrl" placeholder="e.g., http://127.0.0.1:11434, http://127.0.0.1:1234/v1, or http://127.0.0.1:8000/v1">
                     <small style="color: #888; font-size: 12px; margin-top: 4px; display: block;">
                         Local LLM server endpoint or OpenAI-compatible API endpoint
                     </small>
@@ -194,6 +195,15 @@
                 </p>
             </div>
 
+            <!-- LM Studio Settings (shares Local LLM config) -->
+            <div id="lmStudioSettings" style="display:none;">
+                <p style="color: #888; font-size: 14px; margin: 10px 0;">
+                    LM Studio uses the same configuration as Local LLM (see above).
+                    Set the URL to LM Studio's OpenAI-compatible endpoint, e.g. http://127.0.0.1:1234/v1,
+                    and the Model Name to the model identifier shown in LM Studio's "Local Server" tab.
+                </p>
+            </div>
+
             <div class="form-group">
                 <label>MCP Server URL</label>
                 <input type="text" id="mcpUrl" placeholder="e.g., http://127.0.0.1:8001">
@@ -233,6 +243,8 @@
                     activeModel = status.openai_model || 'N/A';
                 } else if (status.llm_provider === 'nvidia_nim') {
                     activeModel = status.local_llm_model || 'N/A';  // NIM uses Local LLM config
+                } else if (status.llm_provider === 'lm_studio') {
+                    activeModel = status.local_llm_model || 'N/A';  // LM Studio uses Local LLM config
                 }
 
                 document.getElementById('configInfo').innerHTML = `
@@ -835,11 +847,12 @@
 
         function updateModelOptions() {
             const provider = document.getElementById('llmProvider').value;
-            // Show Local LLM settings for both local_llm and nvidia_nim (they share the same config)
-            document.getElementById('ollamaSettings').style.display = (provider === 'local_llm' || provider === 'nvidia_nim') ? 'block' : 'none';
+            // Show Local LLM settings for local_llm, nvidia_nim, and lm_studio (they share the same config)
+            document.getElementById('ollamaSettings').style.display = (provider === 'local_llm' || provider === 'nvidia_nim' || provider === 'lm_studio') ? 'block' : 'none';
             document.getElementById('geminiSettings').style.display = provider === 'gemini' ? 'block' : 'none';
             document.getElementById('openaiSettings').style.display = provider === 'openai' ? 'block' : 'none';
             document.getElementById('nvidiaNimSettings').style.display = provider === 'nvidia_nim' ? 'block' : 'none';
+            document.getElementById('lmStudioSettings').style.display = provider === 'lm_studio' ? 'block' : 'none';
         }
 
         async function saveSettings() {

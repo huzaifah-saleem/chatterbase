@@ -27,6 +27,7 @@ class Config:
 
     # Application Configuration
     DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+    HOST = os.getenv("HOST", "0.0.0.0")
     PORT = int(os.getenv("PORT", 5000))
     CHARTS_DIR = "charts"
     MAX_ITERATIONS = 10  # Safety limit for multi-step execution
@@ -40,7 +41,7 @@ class Config:
 
     @classmethod
     def update(cls, **kwargs):
-        """Update configuration values dynamically"""
+        """Update configuration values dynamically, skipping absent (None) fields"""
         for key, value in kwargs.items():
-            if hasattr(cls, key.upper()):
+            if value is not None and hasattr(cls, key.upper()):
                 setattr(cls, key.upper(), value)

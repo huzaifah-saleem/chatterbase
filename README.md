@@ -9,6 +9,7 @@ A Flask-based web interface for interacting with Teradata databases via the Mode
   - Google Gemini
   - OpenAI
   - NVIDIA NIM
+  - LM Studio
 
 - **MCP Integration**: Seamlessly connects to MCP servers for tool execution
 - **Real-time Chat**: Interactive chat interface with streaming responses
@@ -71,10 +72,10 @@ pip install -r requirements.txt
    MCP_SERVER_URL=http://127.0.0.1:8001
    MCP_ENDPOINT=/mcp
 
-   # Choose your LLM provider: "local_llm", "gemini", "openai", or "nvidia_nim"
+   # Choose your LLM provider: "local_llm", "gemini", "openai", "nvidia_nim", or "lm_studio"
    LLM_PROVIDER=nvidia_nim
 
-   # Local LLM Configuration (for Ollama or NVIDIA NIM)
+   # Local LLM Configuration (for Ollama, NVIDIA NIM, or LM Studio)
    LOCAL_LLM_URL=http://127.0.0.1:11434
    LOCAL_LLM_MODEL=llama2
 
@@ -99,6 +100,23 @@ python app.py
 
 The application will start on `http://localhost:5000` by default.
 
+### Running with Docker
+
+A `Dockerfile` and `docker-compose.yml` are provided for containerized runs.
+
+1. Copy `env.example` to `.env` and fill in your settings (see step 4 above).
+2. **Important**: if your MCP server or LLM provider (Ollama, LM Studio, NVIDIA NIM, ...) runs on the host machine rather than in a container, `127.0.0.1` inside the container refers to the container itself, not the host. Use `http://host.docker.internal:PORT` instead, e.g.:
+   ```bash
+   MCP_SERVER_URL=http://host.docker.internal:8001
+   LOCAL_LLM_URL=http://host.docker.internal:1234/v1
+   ```
+3. Build and start:
+   ```bash
+   docker compose up -d --build
+   ```
+4. The app is available at `http://localhost:5000`. Saved charts are persisted to `./charts` on the host via the mounted volume.
+5. View logs with `docker compose logs -f`, stop with `docker compose down`.
+
 ## Usage
 
 1. Open your browser and navigate to `http://localhost:5000`
@@ -120,6 +138,9 @@ MCP UI/
 ├── prompts.py          # System prompts and templates
 ├── requirements.txt    # Python dependencies
 ├── env.example         # Environment variables template
+├── Dockerfile          # Container image definition
+├── docker-compose.yml  # Container run configuration
+├── .dockerignore       # Files excluded from the image build
 ├── static/             # Static assets (CSS, JS)
 └── templates/          # HTML templates
 ```
@@ -132,6 +153,7 @@ MCP UI/
 - **gemini**: Google's Gemini API
 - **openai**: OpenAI's GPT models
 - **nvidia_nim**: NVIDIA NIM endpoints
+- **lm_studio**: LM Studio's local OpenAI-compatible server (default `http://127.0.0.1:1234/v1`)
 
 ### MCP Server
 

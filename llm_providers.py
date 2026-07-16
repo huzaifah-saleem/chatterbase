@@ -18,6 +18,8 @@ class LLMProvider:
             return OpenAIProvider.call(system_prompt, user_message, history)
         elif provider == "nvidia_nim":
             return NvidiaNIMProvider.call(system_prompt, user_message, history)
+        elif provider == "lm_studio":
+            return LMStudioProvider.call(system_prompt, user_message, history)
         else:
             raise ValueError(f"Unknown LLM provider: {Config.LLM_PROVIDER}")
 
@@ -174,3 +176,48 @@ class NvidiaNIMProvider:
             return {"status": "ok", "provider": Config.LOCAL_LLM_MODEL}
         except Exception as e:
             raise ValueError(f"NVIDIA NIM not available at {Config.LOCAL_LLM_URL}: {str(e)}")
+
+
+class LMStudioProvider:
+    """LM Studio LLM provider (OpenAI-compatible API, reuses Local LLM config)"""
+
+    @staticmethod
+    def call(system_prompt, user_message, history=None):
+        """Call LM Studio API using its OpenAI-compatible interface"""
+        from openai import OpenAI
+
+        # Reuse Local LLM URL and model config for LM Studio (same pattern as NVIDIA NIM)
+        client = OpenAI(
+            base_url=Config.LOCAL_LLM_URL,
+            api_key="not-needed"  # LM Studio doesn't require an API key
+        )
+
+        messages = [{"role": "system", "content": system_prompt}]
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": user_message})
+
+        print(f"[LM Studio] Calling {Config.LOCAL_LLM_URL} with model {Config.LOCAL_LLM_MODEL}")
+
+        response = client.chat.completions.create(
+            model=Config.LOCAL_LLM_MODEL,
+            messages=messages,
+            temperature=0.1,
+            max_tokens=4096
+        )
+
+        result = response.choices[0].message.content
+        print(f"[LM Studio] Response: {result[:200]}...")
+        return result
+
+    @staticmethod
+    def health_check():
+        """Check if LM Studio is available"""
+        import requests
+        try:
+            # LM Studio exposes an OpenAI-compatible /v1/models endpoint
+            response = requests.get(f"{Config.LOCAL_LLM_URL}/models", timeout=5)
+            response.raise_for_status()
+            return {"status": "ok", "provider": Config.LOCAL_LLM_MODEL}
+        except Exception as e:
+            raise ValueError(f"LM Studio not available at {Config.LOCAL_LLM_URL}: {str(e)}")

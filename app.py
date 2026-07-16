@@ -10,7 +10,7 @@ import os
 
 from config import Config
 from mcp_client import run_async, get_mcp_tools
-from llm_providers import LLMProvider, LocalLLMProvider, GeminiProvider, OpenAIProvider, NvidiaNIMProvider
+from llm_providers import LLMProvider, LocalLLMProvider, GeminiProvider, OpenAIProvider, NvidiaNIMProvider, LMStudioProvider
 from chat_handler import process_chat_request
 
 # Initialize Flask app
@@ -75,6 +75,8 @@ def llm_health():
             return jsonify(OpenAIProvider.health_check())
         elif Config.LLM_PROVIDER == "nvidia_nim":
             return jsonify(NvidiaNIMProvider.health_check())
+        elif Config.LLM_PROVIDER == "lm_studio":
+            return jsonify(LMStudioProvider.health_check())
         else:
             return jsonify({"error": f"Unknown provider: {Config.LLM_PROVIDER}"}), 500
     except Exception as e:
@@ -231,4 +233,4 @@ if __name__ == "__main__":
 ║  LLM Provider: {Config.LLM_PROVIDER:<43}║
 ╚════════════════════════════════════════════════════════════╝
 """)
-    app.run(debug=Config.DEBUG, port=Config.PORT)
+    app.run(host=Config.HOST, debug=Config.DEBUG, port=Config.PORT)
