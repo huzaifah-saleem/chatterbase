@@ -445,36 +445,52 @@
                     body: JSON.stringify({message: msg, history})
                 });
 
+                if (!response.ok) {
+                    const bodyText = await response.text();
+                    throw new Error(`Server returned HTTP ${response.status}: ${bodyText.slice(0, 500)}`);
+                }
+
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let result = null;
+                let streamError = null;
+                let lastProgress = null;
+                let eventCount = 0;
+                let sawDone = false;
+                let buffer = '';
 
                 while (true) {
                     const {done, value} = await reader.read();
                     if (done) break;
 
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
+                    // Large events (e.g. the final result, which embeds full tool data)
+                    // can span multiple network chunks. Buffer partial lines/multi-byte
+                    // UTF-8 sequences across reads instead of parsing each chunk in isolation,
+                    // otherwise a split JSON payload silently fails to parse and gets dropped.
+                    buffer += decoder.decode(value, {stream: true});
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
 
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             const data = line.substring(6);
-                            if (data === '[DONE]') continue;
+                            if (data === '[DONE]') { sawDone = true; continue; }
 
                             try {
                                 const event = JSON.parse(data);
+                                eventCount++;
                                 if (event.type === 'progress') {
                                     // Update with REAL progress from backend!
+                                    lastProgress = event.data;
                                     updateProgress(loadId, event.data.detail);
                                 } else if (event.type === 'result') {
                                     result = event.data;
                                 } else if (event.type === 'error') {
-                                    throw new Error(event.data.error);
+                                    // Capture, don't throw here - this catch block would just swallow it
+                                    streamError = event.data.error;
                                 }
                             } catch (e) {
-                                if (data !== '[DONE]') {
-                                    console.error('Failed to parse SSE data:', e);
-                                }
+                                console.error('Failed to parse SSE data:', data, e);
                             }
                         }
                     }
@@ -482,8 +498,16 @@
 
                 removeLoading(loadId);
 
+                if (streamError) {
+                    console.error('Backend reported an error:', streamError);
+                    throw new Error(streamError);
+                }
+
                 if (!result) {
-                    throw new Error('No result received from server');
+                    const detail = `events received: ${eventCount}, stream closed cleanly: ${sawDone}, ` +
+                        `last progress: ${lastProgress ? `${lastProgress.status} - ${lastProgress.detail}` : 'none'}`;
+                    console.error('No result received from server.', detail);
+                    throw new Error(`No result received from server (${detail}). Check the server logs (docker logs) for details.`);
                 }
 
                 const d = result;

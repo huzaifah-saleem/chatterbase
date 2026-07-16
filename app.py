@@ -175,8 +175,11 @@ def chat_stream():
             result_container['result'] = result
             progress_queue.put({'type': 'done'})
         except Exception as e:
-            result_container['error'] = str(e)
-            progress_queue.put({'type': 'error', 'message': str(e)})
+            import traceback
+            tb = traceback.format_exc()
+            print(f"[Chat Stream] Unhandled error in run_processing:\n{tb}")
+            result_container['error'] = f"{type(e).__name__}: {e}"
+            progress_queue.put({'type': 'error', 'message': f"{type(e).__name__}: {e}"})
 
     def generate():
         """Generator function for Server-Sent Events"""
@@ -195,8 +198,13 @@ def chat_stream():
 
                 elif event['type'] == 'done':
                     if 'result' in result_container:
-                        data = {'type': 'result', 'data': result_container['result']}
-                        yield f"data: {json_lib.dumps(data)}\n\n"
+                        try:
+                            data = {'type': 'result', 'data': result_container['result']}
+                            yield f"data: {json_lib.dumps(data)}\n\n"
+                        except (TypeError, ValueError) as e:
+                            print(f"[Chat Stream] Failed to serialize result: {e}")
+                            error_data = {'type': 'error', 'data': {'error': f"Result serialization failed: {e}"}}
+                            yield f"data: {json_lib.dumps(error_data)}\n\n"
                     yield "data: [DONE]\n\n"
                     break
 
