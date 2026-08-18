@@ -3,5 +3,5 @@ flask-cors
 requests
 python-dotenv
 google-generativeai
-mcp
+mcp==1.28.1
 openai

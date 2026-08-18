@@ -211,6 +211,21 @@ class LMStudioProvider:
         return result
 
     @staticmethod
+    def list_models(url=None):
+        """List model IDs currently loaded in LM Studio, via its OpenAI-compatible /v1/models endpoint.
+
+        Accepts an optional url override so the Settings UI can query a URL the
+        user has typed but not yet saved to Config.
+        """
+        import requests
+
+        base_url = (url or Config.LOCAL_LLM_URL).rstrip('/')
+        response = requests.get(f"{base_url}/models", timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        return [m["id"] for m in data.get("data", [])]
+
+    @staticmethod
     def health_check():
         """Check if LM Studio is available"""
         import requests

@@ -199,9 +199,18 @@
             <div id="lmStudioSettings" style="display:none;">
                 <p style="color: #888; font-size: 14px; margin: 10px 0;">
                     LM Studio uses the same configuration as Local LLM (see above).
-                    Set the URL to LM Studio's OpenAI-compatible endpoint, e.g. http://127.0.0.1:1234/v1,
-                    and the Model Name to the model identifier shown in LM Studio's "Local Server" tab.
+                    Set the URL to LM Studio's OpenAI-compatible endpoint, e.g. http://127.0.0.1:1234/v1.
                 </p>
+                <div class="form-group">
+                    <label>Available Models</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="lmStudioModelSelect" style="flex: 1;" onchange="if(this.value){document.getElementById('ollamaModel').value = this.value;}">
+                            <option value="">-- Click Refresh to load models --</option>
+                        </select>
+                        <button type="button" class="btn-secondary" style="margin-left: 0; white-space: nowrap;" onclick="loadLmStudioModels()">Refresh</button>
+                    </div>
+                    <small id="lmStudioModelStatus" style="color: #888; font-size: 12px; margin-top: 4px; display: block;"></small>
+                </div>
             </div>
 
             <div class="form-group">
@@ -877,6 +886,48 @@
             document.getElementById('openaiSettings').style.display = provider === 'openai' ? 'block' : 'none';
             document.getElementById('nvidiaNimSettings').style.display = provider === 'nvidia_nim' ? 'block' : 'none';
             document.getElementById('lmStudioSettings').style.display = provider === 'lm_studio' ? 'block' : 'none';
+
+            if (provider === 'lm_studio') {
+                loadLmStudioModels();
+            }
+        }
+
+        async function loadLmStudioModels() {
+            const select = document.getElementById('lmStudioModelSelect');
+            const status = document.getElementById('lmStudioModelStatus');
+            const url = document.getElementById('ollamaUrl').value.trim();
+            const currentModel = document.getElementById('ollamaModel').value.trim();
+
+            if (!url) {
+                status.textContent = 'Enter the API Endpoint URL above first.';
+                return;
+            }
+
+            select.innerHTML = '<option value="">Loading...</option>';
+            status.textContent = 'Fetching models from ' + url + '...';
+
+            try {
+                const r = await fetch('/api/llm/models?url=' + encodeURIComponent(url));
+                const d = await r.json();
+
+                if (!r.ok || d.error) {
+                    throw new Error(d.error || 'Failed to fetch models');
+                }
+
+                if (!d.models || d.models.length === 0) {
+                    select.innerHTML = '<option value="">No models found</option>';
+                    status.textContent = 'LM Studio returned no loaded models. Load one in LM Studio first.';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">-- Select a model --</option>' +
+                    d.models.map(m => `<option value="${escapeHtml(m)}" ${m === currentModel ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
+                status.textContent = `Found ${d.models.length} model(s).`;
+            } catch (e) {
+                select.innerHTML = '<option value="">-- Click Refresh to load models --</option>';
+                status.textContent = 'Error: ' + e.message;
+                console.error('Failed to load LM Studio models:', e);
+            }
         }
 
         async function saveSettings() {

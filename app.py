@@ -83,6 +83,17 @@ def llm_health():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/llm/models")
+def llm_models():
+    """List models available from an OpenAI-compatible local server (LM Studio, etc.)"""
+    try:
+        url = request.args.get("url")
+        models = LMStudioProvider.list_models(url)
+        return jsonify({"models": models})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/config/update", methods=["POST"])
 def update_config():
     """Update configuration settings"""
