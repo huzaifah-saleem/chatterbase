@@ -1,4 +1,4 @@
-# MCP UI - Teradata MCP Agent
+# Chatterbase - Chat with Your Data
 
 A Flask-based web interface for interacting with Teradata databases via the Model Context Protocol (MCP) using various LLM providers.
 

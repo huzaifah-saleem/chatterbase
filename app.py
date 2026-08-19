@@ -1,5 +1,5 @@
 """
-Teradata MCP Agent
+Chatterbase - Chat with Your Data
 A Flask-based web interface for interacting with Teradata via MCP using LLMs
 """
 from flask import Flask, request, jsonify, render_template
@@ -304,7 +304,7 @@ def chat_stream():
 if __name__ == "__main__":
     print(f"""
 ╔════════════════════════════════════════════════════════════╗
-║         Teradata MCP Chatbot                               ║
+║             Chatterbase - Chat with Your Data              ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Server:  http://localhost:{Config.PORT:<44}║
 ╠════════════════════════════════════════════════════════════╣

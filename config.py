@@ -1,4 +1,4 @@
-"""Configuration management for Teradata MCP Agent"""
+"""Configuration management for Chatterbase"""
 import os
 from dotenv import load_dotenv
 

@@ -1,4 +1,4 @@
-"""System prompts for the Teradata MCP Agent"""
+"""System prompts for Chatterbase"""
 
 
 def build_tools_description(tools):
