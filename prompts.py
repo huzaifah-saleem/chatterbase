@@ -1,4 +1,95 @@
 """System prompts for Chatterbase"""
+import re
+
+# Always included regardless of the user's message - these cover the majority
+# of requests (list/preview/query) on their own, so keyword matching only
+# needs to find the rest.
+CORE_TOOL_NAMES = {
+    'base_databaseList',
+    'base_tableList',
+    'base_tablePreview',
+    'base_readQuery',
+    'base_tableDDL',
+    'base_columnDescription',
+}
+
+
+# Function words that carry no discriminating signal for tool matching -
+# excluded so they don't drown out genuinely specific terms.
+_STOPWORDS = {
+    'a', 'an', 'the', 'of', 'for', 'and', 'or', 'to', 'in', 'with', 'like',
+    'is', 'are', 'on', 'that', 'this', 'from', 'by', 'me', 'my', 'i', 'you',
+    'your', 'do', 'does', 'have', 'has', 'about', 'what', 'how',
+}
+
+
+def _keywords(text):
+    """Lowercased alphanumeric tokens, camelCase-split, with stopwords/short tokens dropped."""
+    spaced = re.sub(r'(?<=[a-z0-9])(?=[A-Z])', ' ', text)
+    words = re.findall(r'[a-z0-9]+', spaced.lower())
+    return {w for w in words if w not in _STOPWORDS and len(w) > 2}
+
+
+def filter_relevant_tools(tools, user_message, max_tools=10, max_chars=4000):
+    """Select a relevant subset of tools to describe in the system prompt,
+    instead of describing the entire MCP catalog on every request.
+
+    Some providers (e.g. a locally hosted model with a modest context
+    window) can't fit descriptions for 100+ tools at once - LM Studio
+    returns "Context size has been exceeded" before the model ever gets to
+    respond. This keeps the core CRUD tools always available (they cover
+    most requests by themselves) and fills remaining slots with whichever
+    other tools best keyword-match the user's message: name matches count
+    for more than description matches (a compound name like
+    qlty_missingValues matching "missing"+"values" is a much stronger
+    signal than the same words in prose), and only the first line of each
+    description is scored - descriptions embed a repeated "Arguments:
+    database_name / table_name ..." block that would otherwise drown out
+    real signal with words nearly every tool happens to share.
+
+    max_chars additionally caps the total size of the selected tools'
+    descriptions (not just their count): a handful of parameter-heavy
+    tools (e.g. tdml_* ML functions with dozens of documented arguments)
+    can each be large enough to blow the context budget on their own, so
+    candidates that would exceed the remaining budget are skipped in favor
+    of smaller lower-ranked ones rather than stopping selection outright.
+
+    Trade-off: if the user's wording doesn't share any words with the tool
+    they actually need, it won't be included and the model won't know it
+    exists. Raise Config.MAX_RELEVANT_TOOLS, or use a provider with a
+    larger context window, if that becomes a problem.
+    """
+    core = [t for t in tools if t['name'] in CORE_TOOL_NAMES]
+    core_names = {t['name'] for t in core}
+
+    query_words = _keywords(user_message)
+
+    scored = []
+    for t in tools:
+        if t['name'] in core_names:
+            continue
+        name_words = _keywords(t['name'])
+        first_line = t.get('description', '').strip().split('\n')[0]
+        desc_words = _keywords(first_line)
+        score = 3 * len(query_words & name_words) + len(query_words & desc_words)
+        if score > 0:
+            scored.append((score, t))
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+
+    selected = list(core)
+    budget = max_chars - len(build_tools_description(core)) if core else max_chars
+    remaining_slots = max(0, max_tools - len(core))
+
+    for _, t in scored:
+        if len(selected) - len(core) >= remaining_slots:
+            break
+        t_desc_len = len(build_tools_description([t]))
+        if t_desc_len > budget:
+            continue
+        selected.append(t)
+        budget -= t_desc_len
+
+    return selected
 
 
 def build_tools_description(tools):

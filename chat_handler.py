@@ -3,7 +3,7 @@ import json
 import re
 from mcp_client import run_async, get_mcp_tools, call_mcp_tool
 from llm_providers import LLMProvider
-from prompts import get_system_prompt, get_summary_prompt
+from prompts import get_system_prompt, get_summary_prompt, filter_relevant_tools
 from config import Config
 
 
@@ -78,10 +78,14 @@ def process_chat_request(user_message, history=None, progress_callback=None):
         mcp_error = str(e)
         print(f"[Chat] MCP error: {e}")
 
-    # Build system prompt
+    # Build system prompt from a relevant subset of tools, not the full catalog -
+    # some providers can't fit descriptions for 100+ tools in their context window.
     if tools:
-        system_prompt = get_system_prompt(tools)
+        relevant_tools = filter_relevant_tools(tools, user_message, Config.MAX_RELEVANT_TOOLS)
+        print(f"[Chat] Using {len(relevant_tools)}/{len(tools)} tools in system prompt: {[t['name'] for t in relevant_tools]}")
+        system_prompt = get_system_prompt(relevant_tools)
     else:
+        relevant_tools = []
         system_prompt = f"You are a helpful assistant. MCP connection issue: {mcp_error or 'No tools available'}."
 
     # Multi-step execution loop
@@ -109,8 +113,10 @@ def process_chat_request(user_message, history=None, progress_callback=None):
                 requested_tool = mcp_call.get("tool") or mcp_call.get("name", "")
                 mcp_call["tool"] = requested_tool
 
-                # Validate tool exists
-                valid_tool_names = [t['name'] for t in tools]
+                # Validate against the tools actually described to the model (relevant_tools),
+                # not the full catalog - the model can't have legitimately chosen a tool it
+                # was never shown, and arguments for an undescribed tool can't be trusted.
+                valid_tool_names = [t['name'] for t in relevant_tools]
                 if requested_tool not in valid_tool_names:
                     error_msg = f"Error: Tool '{requested_tool}' does not exist. Available tools: {', '.join(valid_tool_names)}"
                     print(f"[Chat] {error_msg}")
