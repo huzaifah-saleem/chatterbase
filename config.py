@@ -30,6 +30,7 @@ class Config:
     HOST = os.getenv("HOST", "0.0.0.0")
     PORT = int(os.getenv("PORT", 5000))
     CHARTS_DIR = "charts"
+    CONVERSATIONS_DIR = "conversations"
     MAX_ITERATIONS = 10  # Safety limit for multi-step execution
     TIMEOUT = 300  # 5 minutes timeout for LLM calls
 

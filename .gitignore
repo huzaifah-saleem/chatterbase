@@ -25,6 +25,9 @@ build/
 # Charts (generated at runtime)
 charts/*.png
 
+# Conversation history (generated at runtime, may contain query results)
+conversations/*.json
+
 # Backup files
 *.bak
 *.backup

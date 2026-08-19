@@ -6,5 +6,6 @@ __pycache__/
 *.pyc
 .DS_Store
 charts/*.png
+conversations/*.json
 *.mov
 README.md

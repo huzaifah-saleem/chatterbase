@@ -12,6 +12,7 @@ from config import Config
 from mcp_client import run_async, get_mcp_tools
 from llm_providers import LLMProvider, LocalLLMProvider, GeminiProvider, OpenAIProvider, NvidiaNIMProvider, LMStudioProvider
 from chat_handler import process_chat_request
+import conversation_store
 
 # Initialize Flask app
 app = Flask(__name__, static_folder='static', static_url_path='/static', template_folder='templates')
@@ -111,6 +112,65 @@ def update_config():
             mcp_endpoint=data.get("mcp_endpoint")
         )
         return jsonify({"status": "ok", "message": "Configuration updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/conversations", methods=["GET"])
+def list_conversations():
+    """List all saved conversations (summary only), newest first"""
+    try:
+        return jsonify({"conversations": conversation_store.list_conversations()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/conversations", methods=["POST"])
+def create_conversation():
+    """Create a new conversation, titled from the first message"""
+    try:
+        data = request.json
+        first_message = data.get("first_message", "New Conversation")
+        conversation = conversation_store.create_conversation(first_message)
+        return jsonify(conversation)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/conversations/<conversation_id>", methods=["GET"])
+def get_conversation(conversation_id):
+    """Get a single conversation's full message history"""
+    try:
+        conversation = conversation_store.get_conversation(conversation_id)
+        if conversation is None:
+            return jsonify({"error": "Conversation not found"}), 404
+        return jsonify(conversation)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/conversations/<conversation_id>", methods=["PUT"])
+def update_conversation(conversation_id):
+    """Replace a conversation's message list (called after each exchange)"""
+    try:
+        data = request.json
+        messages = data.get("messages", [])
+        conversation = conversation_store.update_messages(conversation_id, messages)
+        return jsonify(conversation)
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/conversations/<conversation_id>", methods=["DELETE"])
+def delete_conversation(conversation_id):
+    """Delete a conversation"""
+    try:
+        existed = conversation_store.delete_conversation(conversation_id)
+        if not existed:
+            return jsonify({"error": "Conversation not found"}), 404
+        return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -69,9 +69,21 @@
         .chart-save-btn { background: #4CAF50; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-top: 8px; }
         .chart-save-btn:hover { background: #45a049; }
 
-        .sidebar { width: 250px; background: #fff; border-right: 1px solid #e0e0e0; overflow-y: auto; flex-shrink: 0; }
-        .sidebar-header { padding: 15px; border-bottom: 1px solid #e0e0e0; font-size: 14px; font-weight: 600; color: #333; }
-        .tools-list { padding: 10px; }
+        .sidebar { width: 260px; background: #fff; border-right: 1px solid #e0e0e0; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 12px; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
+        .new-chat-btn { width: 100%; padding: 10px 12px; background: #f27340; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .new-chat-btn:hover { background: #d65a2e; }
+
+        .conversation-list { padding: 8px; overflow-y: auto; flex: 1; }
+        .conv-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; margin-bottom: 4px; border-radius: 6px; font-size: 13px; color: #333; cursor: pointer; transition: background 0.15s; }
+        .conv-item:hover { background: #f0f0f0; }
+        .conv-item.active { background: #fef3ef; color: #d65a2e; font-weight: 500; }
+        .conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .conv-delete { background: none; border: none; color: #999; font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; opacity: 0; }
+        .conv-item:hover .conv-delete { opacity: 1; }
+        .conv-delete:hover { background: #ffe0e0; color: #c62828; }
+
+        .tools-list { padding: 10px 0; }
         .tool-item { padding: 10px 12px; margin-bottom: 6px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; color: #333; cursor: pointer; transition: all 0.2s; }
         .tool-item:hover { background: #e9ecef; border-color: #f27340; }
         .tool-item-name { font-weight: 500; display: block; margin-bottom: 4px; }
@@ -107,8 +119,10 @@
 
     <div class="main-container">
         <div class="sidebar">
-            <div class="sidebar-header">Available Tools</div>
-            <div class="tools-list" id="toolsList">Loading tools...</div>
+            <div class="sidebar-header">
+                <button class="new-chat-btn" onclick="startNewChat()">+ New Chat</button>
+            </div>
+            <div class="conversation-list" id="conversationList">Loading...</div>
         </div>
 
         <div class="content-area">
@@ -223,6 +237,11 @@
                 <input type="text" id="mcpEndpoint" placeholder="e.g., /mcp">
             </div>
 
+            <details style="margin-top: 20px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                <summary style="cursor: pointer; font-size: 13px; font-weight: 600; color: #555;">Available Tools</summary>
+                <div class="tools-list" id="toolsList">Loading tools...</div>
+            </details>
+
             <div style="margin-top: 20px;">
                 <button class="btn-primary" onclick="saveSettings()">Save & Apply</button>
                 <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
@@ -232,6 +251,8 @@
 
     <script>
         let history = [];
+        let currentConversationId = null;
+        let currentMessages = [];
 
         async function init() {
             console.log('Initializing...');
@@ -303,6 +324,8 @@
                 document.getElementById('llmStatus').textContent = 'error';
             }
 
+            loadConversationList();
+
             console.log('Initialization complete');
         }
 
@@ -328,113 +351,7 @@
             }
         }
 
-        function sendQ(t) { document.getElementById('input').value = t; send(); }
-
-        // New streaming version with progress updates
-        async function sendWithProgress() {
-            const input = document.getElementById('input');
-            const msg = input.value.trim();
-            if (!msg) return;
-            input.value = '';
-
-            document.getElementById('infoPanel').style.display = 'none';
-            addMsg('user', msg);
-            const loadId = addLoading();
-
-            try {
-                const response = await fetch('/api/chat/stream', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message: msg, history})
-                });
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let result = null;
-
-                while (true) {
-                    const {done, value} = await reader.read();
-                    if (done) break;
-
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.substring(6);
-                            if (data === '[DONE]') continue;
-
-                            try {
-                                const event = JSON.parse(data);
-                                if (event.type === 'progress') {
-                                    // Update progress text
-                                    updateProgress(loadId, event.data.detail);
-                                } else if (event.type === 'result') {
-                                    result = event.data;
-                                } else if (event.type === 'error') {
-                                    throw new Error(event.data.error);
-                                }
-                            } catch (e) {
-                                if (data !== '[DONE]') {
-                                    console.error('Failed to parse SSE data:', e);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                removeLoading(loadId);
-
-                if (result) {
-                    // Process and display result (same as before)
-                    const { cleanText, charts } = processCharts(result.response);
-                    let content = escapeHtml(cleanText);
-
-                    if (charts.length > 0) {
-                        content += createChartHtml(charts);
-                    }
-
-                    if (result.all_tool_calls && result.all_tool_calls.length > 1) {
-                        content += `<div class="multi-tool-box">`;
-                        content += `<strong>✓ Executed ${result.all_tool_calls.length} operations:</strong>`;
-                        result.all_tool_calls.forEach((call, i) => {
-                            content += `<div class="tool-item">${i+1}. ${call.tool}</div>`;
-                        });
-                        content += `</div>`;
-                    }
-
-                    if (result.mcp_result) {
-                        const toggleId = 'mcp-' + Date.now();
-                        const toolName = result.all_tool_calls && result.all_tool_calls.length > 1
-                            ? `${result.all_tool_calls.length} tools`
-                            : result.mcp_call.tool;
-                        content += `<button class="mcp-toggle" onclick="toggleMcpDetails('${toggleId}')">Show raw data (${toolName})</button>`;
-
-                        if (result.all_tool_calls && result.all_tool_calls.length > 1) {
-                            let allResultsHtml = '';
-                            result.all_tool_calls.forEach((call, i) => {
-                                allResultsHtml += `<div class="mcp-result"><span class="mcp-badge">Tool ${i+1}: ${call.tool}</span><pre>${escapeHtml(JSON.stringify(call.result, null, 2))}</pre></div>`;
-                            });
-                            content += `<div id="${toggleId}" class="mcp-details">${allResultsHtml}</div>`;
-                        } else {
-                            content += `<div id="${toggleId}" class="mcp-details"><div class="mcp-result"><span class="mcp-badge">Tool: ${result.mcp_call.tool}</span><pre>${escapeHtml(JSON.stringify(result.mcp_result, null, 2))}</pre></div></div>`;
-                        }
-                    }
-
-                    addMsg('assistant', content, true);
-                    history.push({role: 'user', content: msg});
-                    let assistantContent = result.response;
-                    if (result.tool_result_for_history) {
-                        assistantContent += `\\n\\n[Tool Result Data]:\\n${result.tool_result_for_history}`;
-                    }
-                    history.push({role: 'assistant', content: assistantContent});
-                    if (history.length > 10) history = history.slice(-10);
-                }
-            } catch (e) {
-                removeLoading(loadId);
-                addMsg('assistant', 'Error: ' + e.message);
-            }
-        }
+        function sendQ(t) { document.getElementById('input').value = t; closeSettings(); send(); }
 
         // Use streaming with REAL progress from backend
         async function send() {
@@ -519,58 +436,28 @@
                     throw new Error(`No result received from server (${detail}). Check the server logs (docker logs) for details.`);
                 }
 
-                const d = result;
-
-                if (d.error) {
-                    addMsg('assistant', 'Error: ' + d.error);
+                if (result.error) {
+                    renderAssistantMessage({error: result.error});
                 } else {
-                    // Process charts from response
-                    const { cleanText, charts } = processCharts(d.response);
-                    let content = escapeHtml(cleanText);
+                    // Normalize into the same {content, ...} shape used by stored
+                    // messages (see persistExchange/loadConversation) so rendering
+                    // and history-building work identically whether a message just
+                    // arrived live or was reloaded from a saved conversation.
+                    const assistantMsg = {
+                        content: result.response,
+                        all_tool_calls: result.all_tool_calls || null,
+                        mcp_call: result.mcp_call || null,
+                        mcp_result: result.mcp_result || null,
+                        tool_result_for_history: result.tool_result_for_history || null
+                    };
+                    renderAssistantMessage(assistantMsg);
 
-                    // Add charts if any
-                    if (charts.length > 0) {
-                        content += createChartHtml(charts);
-                    }
-
-                    // Show all tool calls if multiple
-                    if (d.all_tool_calls && d.all_tool_calls.length > 1) {
-                        content += `<div class="multi-tool-box">`;
-                        content += `<strong>✓ Executed ${d.all_tool_calls.length} operations:</strong>`;
-                        d.all_tool_calls.forEach((call, i) => {
-                            content += `<div class="tool-item">${i+1}. ${call.tool}</div>`;
-                        });
-                        content += `</div>`;
-                    }
-
-                    if (d.mcp_result) {
-                        const toggleId = 'mcp-' + Date.now();
-                        const toolName = d.all_tool_calls && d.all_tool_calls.length > 1
-                            ? `${d.all_tool_calls.length} tools`
-                            : d.mcp_call.tool;
-                        content += `<button class="mcp-toggle" onclick="toggleMcpDetails('${toggleId}')">Show raw data (${toolName})</button>`;
-
-                        if (d.all_tool_calls && d.all_tool_calls.length > 1) {
-                            // Show all results
-                            let allResultsHtml = '';
-                            d.all_tool_calls.forEach((call, i) => {
-                                allResultsHtml += `<div class="mcp-result"><span class="mcp-badge">Tool ${i+1}: ${call.tool}</span><pre>${escapeHtml(JSON.stringify(call.result, null, 2))}</pre></div>`;
-                            });
-                            content += `<div id="${toggleId}" class="mcp-details">${allResultsHtml}</div>`;
-                        } else {
-                            content += `<div id="${toggleId}" class="mcp-details"><div class="mcp-result"><span class="mcp-badge">Tool: ${d.mcp_call.tool}</span><pre>${escapeHtml(JSON.stringify(d.mcp_result, null, 2))}</pre></div></div>`;
-                        }
-                    }
-                    addMsg('assistant', content, true);
                     history.push({role: 'user', content: msg});
-                    // Include tool result data in history for follow-up questions
-                    let assistantContent = d.response;
-                    if (d.tool_result_for_history) {
-                        assistantContent += `\\n\\n[Tool Result Data]:\\n${d.tool_result_for_history}`;
-                    }
-                    history.push({role: 'assistant', content: assistantContent});
+                    history.push({role: 'assistant', content: historyContentFor(assistantMsg)});
                     // Keep more history for context, but trim if too long
                     if (history.length > 10) history = history.slice(-10);
+
+                    await persistExchange(msg, assistantMsg);
                 }
             } catch (e) {
                 removeLoading(loadId);
@@ -578,83 +465,185 @@
             }
         }
 
-        // Fallback: Keep old non-streaming function for compatibility
-        async function sendOld() {
-            const input = document.getElementById('input');
-            const msg = input.value.trim();
-            if (!msg) return;
-            input.value = '';
+        // Renders one assistant turn into the chat panel. Shared by the live
+        // send() flow and by loadConversation() (reconstructing from stored history),
+        // so both paths produce identical bubbles (charts, tool-call boxes, etc.)
+        // Expects the {content, all_tool_calls, mcp_call, mcp_result, tool_result_for_history}
+        // shape - the same shape persisted to disk.
+        function renderAssistantMessage(d) {
+            if (d.error) {
+                addMsg('assistant', 'Error: ' + d.error);
+                return;
+            }
 
-            document.getElementById('infoPanel').style.display = 'none';
-            addMsg('user', msg);
-            const loadId = addLoading();
+            const { cleanText, charts } = processCharts(d.content || '');
+            let content = escapeHtml(cleanText);
 
-            try {
-                const r = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message: msg, history})
+            if (charts.length > 0) {
+                content += createChartHtml(charts);
+            }
+
+            if (d.all_tool_calls && d.all_tool_calls.length > 1) {
+                content += `<div class="multi-tool-box">`;
+                content += `<strong>✓ Executed ${d.all_tool_calls.length} operations:</strong>`;
+                d.all_tool_calls.forEach((call, i) => {
+                    content += `<div class="tool-item">${i+1}. ${call.tool}</div>`;
                 });
-                const d = await r.json();
-                removeLoading(loadId);
+                content += `</div>`;
+            }
 
-                if (d.error) {
-                    addMsg('assistant', 'Error: ' + d.error);
+            if (d.mcp_result) {
+                // Random suffix avoids id collisions when several historical messages
+                // are rendered back-to-back within the same millisecond.
+                const toggleId = 'mcp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+                const toolName = d.all_tool_calls && d.all_tool_calls.length > 1
+                    ? `${d.all_tool_calls.length} tools`
+                    : d.mcp_call.tool;
+                content += `<button class="mcp-toggle" onclick="toggleMcpDetails('${toggleId}')">Show raw data (${toolName})</button>`;
+
+                if (d.all_tool_calls && d.all_tool_calls.length > 1) {
+                    let allResultsHtml = '';
+                    d.all_tool_calls.forEach((call, i) => {
+                        allResultsHtml += `<div class="mcp-result"><span class="mcp-badge">Tool ${i+1}: ${call.tool}</span><pre>${escapeHtml(JSON.stringify(call.result, null, 2))}</pre></div>`;
+                    });
+                    content += `<div id="${toggleId}" class="mcp-details">${allResultsHtml}</div>`;
                 } else {
-                    // Process charts from response
-                    const { cleanText, charts } = processCharts(d.response);
-                    let content = escapeHtml(cleanText);
-
-                    // Add charts if any
-                    if (charts.length > 0) {
-                        content += createChartHtml(charts);
-                    }
-
-                    // Show all tool calls if multiple
-                    if (d.all_tool_calls && d.all_tool_calls.length > 1) {
-                        content += `<div class="multi-tool-box">`;
-                        content += `<strong>✓ Executed ${d.all_tool_calls.length} operations:</strong>`;
-                        d.all_tool_calls.forEach((call, i) => {
-                            content += `<div class="tool-item">${i+1}. ${call.tool}</div>`;
-                        });
-                        content += `</div>`;
-                    }
-
-                    if (d.mcp_result) {
-                        const toggleId = 'mcp-' + Date.now();
-                        const toolName = d.all_tool_calls && d.all_tool_calls.length > 1
-                            ? `${d.all_tool_calls.length} tools`
-                            : d.mcp_call.tool;
-                        content += `<button class="mcp-toggle" onclick="toggleMcpDetails('${toggleId}')">Show raw data (${toolName})</button>`;
-
-                        if (d.all_tool_calls && d.all_tool_calls.length > 1) {
-                            // Show all results
-                            let allResultsHtml = '';
-                            d.all_tool_calls.forEach((call, i) => {
-                                allResultsHtml += `<div class="mcp-result"><span class="mcp-badge">Tool ${i+1}: ${call.tool}</span><pre>${escapeHtml(JSON.stringify(call.result, null, 2))}</pre></div>`;
-                            });
-                            content += `<div id="${toggleId}" class="mcp-details">${allResultsHtml}</div>`;
-                        } else {
-                            content += `<div id="${toggleId}" class="mcp-details"><div class="mcp-result"><span class="mcp-badge">Tool: ${d.mcp_call.tool}</span><pre>${escapeHtml(JSON.stringify(d.mcp_result, null, 2))}</pre></div></div>`;
-                        }
-                    }
-                    addMsg('assistant', content, true);
-                    history.push({role: 'user', content: msg});
-                    // Include tool result data in history for follow-up questions
-                    let assistantContent = d.response;
-                    if (d.tool_result_for_history) {
-                        assistantContent += `\\n\\n[Tool Result Data]:\\n${d.tool_result_for_history}`;
-                    }
-                    history.push({role: 'assistant', content: assistantContent});
-                    // Keep more history for context, but trim if too long
-                    if (history.length > 10) history = history.slice(-10);
+                    content += `<div id="${toggleId}" class="mcp-details"><div class="mcp-result"><span class="mcp-badge">Tool: ${d.mcp_call.tool}</span><pre>${escapeHtml(JSON.stringify(d.mcp_result, null, 2))}</pre></div></div>`;
                 }
+            }
+
+            addMsg('assistant', content, true);
+        }
+
+        // Builds the LLM-context history entry for an assistant turn (includes
+        // raw tool result data so follow-up questions have context). Shared
+        // between the live send() flow and conversation reconstruction.
+        function historyContentFor(d) {
+            let assistantContent = d.content;
+            if (d.tool_result_for_history) {
+                assistantContent += `\n\n[Tool Result Data]:\n${d.tool_result_for_history}`;
+            }
+            return assistantContent;
+        }
+
+        // Persists the just-completed exchange to the backend, creating a new
+        // conversation record on the first message of a chat. assistantMsg is
+        // already in the shared {content, ...} shape (see send()).
+        async function persistExchange(userMsg, assistantMsg) {
+            try {
+                if (!currentConversationId) {
+                    const created = await fetch('/api/conversations', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({first_message: userMsg})
+                    }).then(r => r.json());
+                    if (created.error) throw new Error(created.error);
+                    currentConversationId = created.id;
+                    currentMessages = [];
+                }
+
+                currentMessages.push({role: 'user', content: userMsg});
+                currentMessages.push({role: 'assistant', ...assistantMsg});
+
+                await fetch(`/api/conversations/${currentConversationId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({messages: currentMessages})
+                });
+
+                await loadConversationList();
             } catch (e) {
-                removeLoading(loadId);
-                addMsg('assistant', 'Error: ' + e.message);
+                // Don't block the chat UX if persistence fails - the conversation
+                // still works for this session, it just won't be saved.
+                console.error('Failed to persist conversation:', e);
             }
         }
 
+        function startNewChat() {
+            currentConversationId = null;
+            currentMessages = [];
+            history = [];
+            document.querySelectorAll('#chat .msg').forEach(el => el.remove());
+            const infoPanel = document.getElementById('infoPanel');
+            if (infoPanel) infoPanel.style.display = '';
+            highlightActiveConversation();
+            document.getElementById('input').focus();
+        }
+
+        async function loadConversation(id) {
+            try {
+                const conv = await fetch(`/api/conversations/${id}`).then(r => r.json());
+                if (conv.error) {
+                    alert('Failed to load conversation: ' + conv.error);
+                    return;
+                }
+
+                currentConversationId = conv.id;
+                currentMessages = conv.messages || [];
+
+                document.querySelectorAll('#chat .msg').forEach(el => el.remove());
+                const infoPanel = document.getElementById('infoPanel');
+                if (infoPanel) infoPanel.style.display = 'none';
+
+                history = [];
+                currentMessages.forEach(m => {
+                    if (m.role === 'user') {
+                        addMsg('user', m.content);
+                        history.push({role: 'user', content: m.content});
+                    } else {
+                        renderAssistantMessage(m);
+                        history.push({role: 'assistant', content: historyContentFor(m)});
+                    }
+                });
+                if (history.length > 10) history = history.slice(-10);
+
+                highlightActiveConversation();
+            } catch (e) {
+                alert('Failed to load conversation: ' + e.message);
+            }
+        }
+
+        async function deleteConversationConfirm(id) {
+            if (!confirm('Delete this conversation? This cannot be undone.')) return;
+            try {
+                await fetch(`/api/conversations/${id}`, {method: 'DELETE'});
+                if (id === currentConversationId) {
+                    startNewChat();
+                }
+                await loadConversationList();
+            } catch (e) {
+                alert('Failed to delete conversation: ' + e.message);
+            }
+        }
+
+        function highlightActiveConversation() {
+            document.querySelectorAll('.conv-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.id === currentConversationId);
+            });
+        }
+
+        async function loadConversationList() {
+            try {
+                const d = await fetch('/api/conversations').then(r => r.json());
+                const list = document.getElementById('conversationList');
+                const conversations = d.conversations || [];
+
+                if (conversations.length === 0) {
+                    list.innerHTML = '<div style="padding: 15px; color: #999; font-size: 12px;">No conversations yet</div>';
+                    return;
+                }
+
+                list.innerHTML = conversations.map(c => `
+                    <div class="conv-item ${c.id === currentConversationId ? 'active' : ''}" data-id="${c.id}" onclick="loadConversation('${c.id}')">
+                        <span class="conv-title">${escapeHtml(c.title)}</span>
+                        <button class="conv-delete" onclick="event.stopPropagation(); deleteConversationConfirm('${c.id}')" title="Delete">&times;</button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load conversation list:', e);
+                document.getElementById('conversationList').innerHTML = '<div style="padding: 15px; color: #f44336; font-size: 12px;">Error loading conversations</div>';
+            }
+        }
         function addMsg(role, content, isHtml = false) {
             const chat = document.getElementById('chat');
             const div = document.createElement('div');

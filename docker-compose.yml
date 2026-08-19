@@ -7,4 +7,5 @@ services:
       - .env
     volumes:
       - ./charts:/app/charts
+      - ./conversations:/app/conversations
     restart: unless-stopped
