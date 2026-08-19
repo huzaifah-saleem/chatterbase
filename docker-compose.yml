@@ -1,5 +1,7 @@
+name: chatterbase
+
 services:
-  mcp-ui:
+  app:
     build: .
     ports:
       - "5000:5000"
