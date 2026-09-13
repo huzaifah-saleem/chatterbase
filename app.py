@@ -16,6 +16,8 @@ import conversation_store
 import mcp_registry
 import llm_registry
 import dashboard_store
+import plan_store
+import agent_orchestrator
 
 # Initialize Flask app
 app = Flask(__name__, static_folder='static', static_url_path='/static', template_folder='templates')
@@ -371,6 +373,61 @@ def unpin_dashboard_chart(dashboard_id, chart_id):
         if not existed:
             return jsonify({"error": "Chart not found"}), 404
         return jsonify({"status": "ok"})
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agent/plan", methods=["POST"])
+def create_agent_plan():
+    """Decompose a request into steps and persist as pending_approval - does
+    not execute anything yet."""
+    try:
+        request_text = (request.json.get("request") or "").strip()
+        if not request_text:
+            return jsonify({"error": "request is required"}), 400
+        steps = agent_orchestrator.plan_request(request_text)
+        plan = plan_store.create_plan(request_text, steps)
+        return jsonify(plan)
+    except Exception as e:
+        print(f"[Agent] Planning error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agent/plan/<plan_id>", methods=["GET"])
+def get_agent_plan(plan_id):
+    try:
+        plan = plan_store.get_plan(plan_id)
+        if plan is None:
+            return jsonify({"error": "Plan not found"}), 404
+        return jsonify(plan)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agent/plan/<plan_id>/approve", methods=["POST"])
+def approve_agent_plan(plan_id):
+    """Executes every step synchronously and returns the completed plan.
+    v0 has no streaming - a multi-step plan can take tens of seconds since
+    each step is its own LLM call (and possibly MCP tool calls)."""
+    try:
+        plan = plan_store.get_plan(plan_id)
+        if plan is None:
+            return jsonify({"error": "Plan not found"}), 404
+        plan_store.set_status(plan_id, "approved")
+        completed = agent_orchestrator.execute_plan(plan_id)
+        return jsonify(completed)
+    except Exception as e:
+        print(f"[Agent] Execution error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agent/plan/<plan_id>/reject", methods=["POST"])
+def reject_agent_plan(plan_id):
+    try:
+        plan = plan_store.set_status(plan_id, "rejected")
+        return jsonify(plan)
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:

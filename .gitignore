@@ -33,6 +33,7 @@ conversations/*.json
 data/*.json
 data/*.json.migrated
 data/dashboards/*.json
+data/plans/*.json
 
 # Backup files
 *.bak

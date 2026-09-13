@@ -157,6 +157,23 @@
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #e0e0e0; background: #fff; }
         .dashboard-header h2 { font-size: 18px; font-weight: 600; color: #333; }
         .dashboard-empty { padding: 40px 20px; text-align: center; color: #999; font-size: 14px; }
+
+        .agent-feed { flex: 1; overflow-y: auto; padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; }
+        .plan-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+        .plan-request { font-size: 13px; color: #666; font-style: italic; margin-bottom: 12px; }
+        .plan-steps { display: flex; flex-direction: column; gap: 10px; }
+        .plan-step { border-left: 3px solid #e0e0e0; padding-left: 12px; }
+        .plan-step-header { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .plan-step-num { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #f0f0f0; color: #666; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+        .plan-step-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+        .plan-step-badge.data { background: #e3f2fd; color: #1565c0; }
+        .plan-step-badge.dashboard { background: #fef3ef; color: #d65a2e; }
+        .plan-step-desc { color: #333; }
+        .plan-step-result { margin: 10px 0 0 26px; font-size: 13px; }
+        .plan-actions { display: flex; gap: 10px; margin-top: 14px; }
+        .plan-status { margin-top: 14px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: #999; }
+        .plan-status-rejected { color: #c62828; }
+        .plan-status-done { color: #2e7d32; }
     </style>
 </head>
 <body>
@@ -190,6 +207,7 @@
             <div class="sidebar-tabs">
                 <button class="sidebar-tab active" id="chatsTabBtn" onclick="switchSidebarTab('chats')">💬 Chats</button>
                 <button class="sidebar-tab" id="dashboardsTabBtn" onclick="switchSidebarTab('dashboards')">📊 Dashboards</button>
+                <button class="sidebar-tab" id="agentTabBtn" onclick="switchSidebarTab('agent')">🤖 Agent</button>
             </div>
             <div class="sidebar-header" id="chatsHeader">
                 <button class="new-chat-btn" onclick="startNewChat()">+ New Chat</button>
@@ -197,8 +215,14 @@
             <div class="sidebar-header" id="dashboardsHeader" style="display:none;">
                 <button class="new-chat-btn" onclick="createNewDashboard()">+ New Dashboard</button>
             </div>
+            <div class="sidebar-header" id="agentHeader" style="display:none;">
+                <button class="new-chat-btn" onclick="clearAgentFeed()">+ New Task</button>
+            </div>
             <div class="conversation-list" id="conversationList">Loading...</div>
             <div class="conversation-list" id="dashboardList" style="display:none;">Loading...</div>
+            <div class="conversation-list" id="agentSidebarInfo" style="display:none; padding: 15px; color: #999; font-size: 12px; line-height: 1.5;">
+                Describe what you want done. A plan gets proposed first — nothing runs until you approve it.
+            </div>
         </div>
 
         <div class="content-area">
@@ -242,7 +266,7 @@
                 </div>
             </div>
 
-            <div class="input-area">
+            <div class="input-area" id="chatInputArea">
                 <div class="input-wrapper">
                     <textarea id="input" placeholder="Ask about your Teradata database..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();send();}"></textarea>
                     <button onclick="send()">Send</button>
@@ -255,6 +279,20 @@
                     <button class="btn-secondary" onclick="showChat()">&larr; Back to Chat</button>
                 </div>
                 <div class="chart-grid" id="dashboardGrid" style="padding: 20px;"></div>
+            </div>
+
+            <div class="dashboard-view" id="agentView" style="display:none;">
+                <div class="dashboard-header">
+                    <h2>🤖 Agent</h2>
+                    <button class="btn-secondary" onclick="showChat()">&larr; Back to Chat</button>
+                </div>
+                <div class="agent-feed" id="agentFeed"></div>
+                <div class="input-area">
+                    <div class="input-wrapper">
+                        <textarea id="agentInput" placeholder="What do you want done? e.g. 'Check my database sizes and chart them'" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();submitAgentRequest();}"></textarea>
+                        <button onclick="submitAgentRequest()">Plan</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -859,14 +897,20 @@
         // ---- Sidebar tabs: Chats vs Dashboards ----
 
         function switchSidebarTab(tab) {
-            const isChats = tab === 'chats';
-            document.getElementById('chatsTabBtn').classList.toggle('active', isChats);
-            document.getElementById('dashboardsTabBtn').classList.toggle('active', !isChats);
-            document.getElementById('chatsHeader').style.display = isChats ? '' : 'none';
-            document.getElementById('dashboardsHeader').style.display = isChats ? 'none' : '';
-            document.getElementById('conversationList').style.display = isChats ? '' : 'none';
-            document.getElementById('dashboardList').style.display = isChats ? 'none' : '';
-            if (!isChats) loadDashboardList();
+            document.getElementById('chatsTabBtn').classList.toggle('active', tab === 'chats');
+            document.getElementById('dashboardsTabBtn').classList.toggle('active', tab === 'dashboards');
+            document.getElementById('agentTabBtn').classList.toggle('active', tab === 'agent');
+
+            document.getElementById('chatsHeader').style.display = tab === 'chats' ? '' : 'none';
+            document.getElementById('dashboardsHeader').style.display = tab === 'dashboards' ? '' : 'none';
+            document.getElementById('agentHeader').style.display = tab === 'agent' ? '' : 'none';
+
+            document.getElementById('conversationList').style.display = tab === 'chats' ? '' : 'none';
+            document.getElementById('dashboardList').style.display = tab === 'dashboards' ? '' : 'none';
+            document.getElementById('agentSidebarInfo').style.display = tab === 'agent' ? '' : 'none';
+
+            if (tab === 'dashboards') loadDashboardList();
+            if (tab === 'agent') showAgentView();
         }
 
         async function loadDashboardList() {
@@ -988,17 +1032,28 @@
         function showDashboard(id) {
             currentDashboardId = id;
             document.getElementById('chat').style.display = 'none';
-            document.querySelector('.input-area').style.display = 'none';
+            document.getElementById('chatInputArea').style.display = 'none';
+            document.getElementById('agentView').style.display = 'none';
             document.getElementById('dashboardView').style.display = 'flex';
             highlightActiveDashboard();
             loadDashboard();
         }
 
+        function showAgentView() {
+            currentDashboardId = null;
+            document.getElementById('chat').style.display = 'none';
+            document.getElementById('chatInputArea').style.display = 'none';
+            document.getElementById('dashboardView').style.display = 'none';
+            document.getElementById('agentView').style.display = 'flex';
+        }
+
         function showChat() {
             currentDashboardId = null;
             document.getElementById('dashboardView').style.display = 'none';
+            document.getElementById('agentView').style.display = 'none';
             document.getElementById('chat').style.display = '';
-            document.querySelector('.input-area').style.display = '';
+            document.getElementById('chatInputArea').style.display = '';
+            switchSidebarTab('chats');
             highlightActiveDashboard();
         }
 
@@ -1057,6 +1112,134 @@
                 await loadDashboard();
             } catch (e) {
                 alert('Error unpinning chart: ' + e.message);
+            }
+        }
+
+        // ---- Agent: generative UI blocks + plan/approve/execute ----
+        //
+        // A sub-agent's output is a list of generic blocks - {type: "text"|
+        // "table"|"chart"|"plan"} - rather than bespoke HTML per agent type,
+        // so a new agent_type never needs new frontend rendering code as long
+        // as it emits blocks in this vocabulary. The "chart" block reuses
+        // createChartHtml() as-is, which is also why charting was worth
+        // building generically earlier: this is the payoff.
+
+        function renderBlocks(blocks) {
+            if (!blocks || blocks.length === 0) return '';
+            return blocks.map(b => {
+                if (b.type === 'text') return `<p>${escapeHtml(b.content || '')}</p>`;
+                if (b.type === 'table') return renderTableBlock(b);
+                if (b.type === 'chart') return createChartHtml([b.chart]);
+                if (b.type === 'plan') return renderPlanBlock(b);
+                return '';
+            }).join('');
+        }
+
+        function renderTableBlock(b) {
+            const columns = b.columns || [];
+            const rows = b.rows || [];
+            const head = '<tr>' + columns.map(c => `<th>${escapeHtml(String(c))}</th>`).join('') + '</tr>';
+            const body = rows.map(r => '<tr>' + r.map(c => `<td>${escapeHtml(String(c))}</td>`).join('') + '</tr>').join('');
+            return `<div class="mcp-result" style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">${head}${body}</table></div>`;
+        }
+
+        function renderPlanBlock(plan) {
+            const stepsHtml = plan.steps.map((s, i) => {
+                const result = (plan.results || []).find(r => r.step_id === s.id);
+                const resultHtml = result ? `<div class="plan-step-result">${renderBlocks(result.blocks)}</div>` : '';
+                return `
+                    <div class="plan-step">
+                        <div class="plan-step-header">
+                            <span class="plan-step-num">${i + 1}</span>
+                            <span class="plan-step-badge ${s.agent_type}">${escapeHtml(s.agent_type)}</span>
+                            <span class="plan-step-desc">${escapeHtml(s.description)}</span>
+                        </div>
+                        ${resultHtml}
+                    </div>
+                `;
+            }).join('');
+
+            let actionsHtml;
+            if (plan.status === 'pending_approval') {
+                actionsHtml = `
+                    <div class="plan-actions">
+                        <button class="btn-primary" onclick="approveAgentPlan('${plan.id}')">Approve &amp; Run</button>
+                        <button class="btn-secondary" onclick="rejectAgentPlan('${plan.id}')">Reject</button>
+                    </div>
+                `;
+            } else {
+                actionsHtml = `<div class="plan-status plan-status-${plan.status}">${escapeHtml(plan.status.replace('_', ' '))}</div>`;
+            }
+
+            return `
+                <div class="plan-card" id="plan-${plan.id}">
+                    <div class="plan-request">"${escapeHtml(plan.request)}"</div>
+                    <div class="plan-steps">${stepsHtml}</div>
+                    ${actionsHtml}
+                </div>
+            `;
+        }
+
+        let agentBusy = false;
+
+        function clearAgentFeed() {
+            document.getElementById('agentFeed').innerHTML = '';
+            document.getElementById('agentInput').focus();
+        }
+
+        async function submitAgentRequest() {
+            const input = document.getElementById('agentInput');
+            const text = input.value.trim();
+            if (!text || agentBusy) return;
+            agentBusy = true;
+            input.value = '';
+
+            const feed = document.getElementById('agentFeed');
+            const loadingId = 'agent-loading-' + Date.now();
+            feed.insertAdjacentHTML('beforeend', `<div class="plan-card" id="${loadingId}"><div class="plan-request">"${escapeHtml(text)}"</div><div class="plan-steps"><em style="color:#999;">Planning...</em></div></div>`);
+            feed.scrollTop = feed.scrollHeight;
+
+            try {
+                const r = await fetch('/api/agent/plan', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({request: text})
+                });
+                const plan = await r.json();
+                document.getElementById(loadingId)?.remove();
+                if (!r.ok) throw new Error(plan.error || 'Failed to create plan');
+                feed.insertAdjacentHTML('beforeend', renderPlanBlock(plan));
+                feed.scrollTop = feed.scrollHeight;
+            } catch (e) {
+                document.getElementById(loadingId)?.remove();
+                feed.insertAdjacentHTML('beforeend', `<div class="error-msg">Error: ${escapeHtml(e.message)}</div>`);
+            } finally {
+                agentBusy = false;
+            }
+        }
+
+        async function approveAgentPlan(planId) {
+            const card = document.getElementById(`plan-${planId}`);
+            const actions = card.querySelector('.plan-actions');
+            if (actions) actions.outerHTML = '<div class="plan-status">Running...</div>';
+            try {
+                const r = await fetch(`/api/agent/plan/${planId}/approve`, {method: 'POST'});
+                const plan = await r.json();
+                if (!r.ok) throw new Error(plan.error || 'Failed to execute plan');
+                card.outerHTML = renderPlanBlock(plan);
+            } catch (e) {
+                alert('Error executing plan: ' + e.message);
+            }
+        }
+
+        async function rejectAgentPlan(planId) {
+            try {
+                const r = await fetch(`/api/agent/plan/${planId}/reject`, {method: 'POST'});
+                const plan = await r.json();
+                if (!r.ok) throw new Error(plan.error || 'Failed to reject plan');
+                document.getElementById(`plan-${planId}`).outerHTML = renderPlanBlock(plan);
+            } catch (e) {
+                alert('Error rejecting plan: ' + e.message);
             }
         }
 

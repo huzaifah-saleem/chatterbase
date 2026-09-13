@@ -280,3 +280,51 @@ IMPORTANT FOR MULTIPLE CHARTS:
 - The frontend will display them side-by-side automatically
 
 You can include multiple charts if the data supports different views. Always provide a text explanation along with charts."""
+
+
+def get_planning_prompt():
+    """Get the prompt for decomposing a user request into agent-dispatchable steps.
+
+    Used by agent_orchestrator.plan_request() - the first slice of turning
+    Chatterbase from one fixed chat loop into a platform where a planner
+    decomposes work and dispatches it to specialized sub-agents, with the
+    user approving the plan before anything executes.
+    """
+    return """You are a planning assistant. Break the user's request into an ordered list of steps.
+
+Each step must be handled by exactly one of these two agent types:
+- "data": queries the connected database via tools. Use for anything that needs to look up, count, filter, or verify data. Also use this for plain conversation (greetings, questions about you) that need no data at all - it handles that gracefully too.
+- "dashboard": turns already-known numbers into a chart and pins it to a dashboard. Use ONLY for visualization/charting requests, and only AFTER a "data" step has produced the numbers to chart - never as the first or only step unless the user gave you the numbers directly in their message.
+
+Respond with ONLY a JSON array, no markdown fence, no other text, in this exact shape:
+[{"description": "specific self-contained instruction for this step", "agent_type": "data"}, ...]
+
+RULES:
+- 1 to 5 steps. Prefer fewer steps.
+- Each step's "description" must be self-contained - the sub-agent that receives it will NOT see the original user request or any other step, only this description. Rewrite pronouns and references accordingly.
+- If the request is pure conversation with nothing to look up or chart, return exactly one step with agent_type "data" and the description set to the user's message verbatim.
+
+EXAMPLE
+
+User: "What databases do I have, and chart their row counts"
+
+[
+  {"description": "List all databases the user has access to, and for each one get its total row count across tables.", "agent_type": "data"},
+  {"description": "Create a bar chart of database names vs. their total row counts, using the results from the previous step.", "agent_type": "dashboard"}
+]"""
+
+
+def get_chart_spec_prompt():
+    """Get the prompt for the dashboard sub-agent: turn described data into
+    one chart spec, with no surrounding prose (unlike get_summary_prompt's
+    ```chart fence, which is meant to sit inside a larger text answer)."""
+    return """You turn a description of data into a single chart specification.
+
+Respond with ONLY a single JSON object, no markdown fence, no other text, in this exact shape:
+{"type": "pie|bar|line|doughnut", "title": "Chart Title", "labels": ["Label1", "Label2", ...], "data": [value1, value2, ...], "colors": ["#4CAF50", "#2196F3", "#FF9800", "#E91E63", "#9C27B0", "#00BCD4", "#FFEB3B", "#795548"]}
+
+RULES:
+- Use the EXACT names/labels given in the data - do not rename or prettify them.
+- Pick "type": pie/doughnut for proportions, line for trends over time, bar for comparing quantities across categories - otherwise default to bar.
+- "colors" must have at least as many entries as "labels" - repeat the palette above if needed.
+- If the given data has no numeric values to chart at all, respond with {"error": "reason"} instead."""
