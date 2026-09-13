@@ -28,6 +28,12 @@ charts/*.png
 # Conversation history (generated at runtime, may contain query results)
 conversations/*.json
 
+# App data - MCP server registry, LLM profiles, dashboards, chart snapshots
+# (generated at runtime, may contain internal URLs/headers/query results)
+data/*.json
+data/*.json.migrated
+data/dashboards/*.json
+
 # Backup files
 *.bak
 *.backup

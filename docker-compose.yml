@@ -10,4 +10,5 @@ services:
     volumes:
       - ./charts:/app/charts
       - ./conversations:/app/conversations
+      - ./data:/app/data
     restart: unless-stopped

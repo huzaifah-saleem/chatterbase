@@ -31,6 +31,7 @@ class Config:
     PORT = int(os.getenv("PORT", 5000))
     CHARTS_DIR = "charts"
     CONVERSATIONS_DIR = "conversations"
+    DATA_DIR = "data"
     MAX_ITERATIONS = 10  # Safety limit for multi-step execution
     MAX_RELEVANT_TOOLS = int(os.getenv("MAX_RELEVANT_TOOLS", 10))  # Cap on tools described in the system prompt (see prompts.filter_relevant_tools)
     TIMEOUT = 300  # 5 minutes timeout for LLM calls

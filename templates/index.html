@@ -47,7 +47,7 @@
         .msg.user { justify-content: flex-end; }
         .msg-content { max-width: 100%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; font-size: 14px; }
         .msg.user .msg-content { background: #394850; color: white; border-bottom-right-radius: 4px; }
-        .msg.assistant .msg-content { background: #fff; border: 1px solid #e0e0e0; border-bottom-left-radius: 4px; }
+        .msg.assistant .msg-content { background: #fff; border: 1px solid #e0e0e0; border-bottom-left-radius: 4px; flex: 1; min-width: 0; }
         .msg.loading .msg-content { display: flex; align-items: center; padding: 0; background: transparent; border: none; white-space: normal; }
 
         .multi-tool-box { margin-top: 10px; padding: 12px; background: #fef3ef; border-left: 4px solid #f27340; border-radius: 4px; font-size: 13px; }
@@ -71,6 +71,10 @@
         .chart-save-btn:hover { background: #45a049; }
 
         .sidebar { width: 260px; background: #fff; border-right: 1px solid #e0e0e0; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+        .sidebar-tabs { display: flex; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
+        .sidebar-tab { flex: 1; padding: 12px 6px; background: none; border: none; font-size: 12px; font-weight: 600; color: #999; cursor: pointer; border-bottom: 2px solid transparent; }
+        .sidebar-tab:hover:not(.active) { color: #666; }
+        .sidebar-tab.active { color: #f27340; border-bottom-color: #f27340; }
         .sidebar-header { padding: 12px; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
         .new-chat-btn { width: 100%; padding: 10px 12px; background: #f27340; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
         .new-chat-btn:hover { background: #d65a2e; }
@@ -83,6 +87,24 @@
         .conv-delete { background: none; border: none; color: #999; font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; opacity: 0; }
         .conv-item:hover .conv-delete { opacity: 1; }
         .conv-delete:hover { background: #ffe0e0; color: #c62828; }
+
+        .mcp-server-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+        .mcp-server-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; }
+        .mcp-server-item.disabled { opacity: 0.5; }
+        .mcp-server-info { flex: 1; min-width: 0; }
+        .mcp-server-name { font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        .mcp-server-url { color: #888; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mcp-server-item .dot { flex-shrink: 0; }
+        .mcp-toggle-switch { width: 32px; height: 18px; border-radius: 9px; background: #ccc; position: relative; cursor: pointer; flex-shrink: 0; transition: background 0.15s; border: none; padding: 0; }
+        .mcp-toggle-switch.on { background: #f27340; }
+        .mcp-toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+        .mcp-toggle-switch.on::after { left: 16px; }
+        .llm-active-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #ccc; background: #fff; cursor: pointer; flex-shrink: 0; padding: 0; }
+        .llm-active-radio.active { border-color: #f27340; background: radial-gradient(circle, #f27340 40%, #fff 44%); }
+        .mcp-server-delete { background: none; border: none; color: #999; font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+        .mcp-server-delete:hover { background: #ffe0e0; color: #c62828; }
+        .mcp-add-row { display: flex; gap: 6px; }
+        .mcp-add-row input { flex: 1; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
 
         .tools-list { padding: 10px 0; }
         .tool-item { padding: 10px 12px; margin-bottom: 6px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; color: #333; cursor: pointer; transition: all 0.2s; }
@@ -111,8 +133,30 @@
 
         .chart-container { margin-top: 15px; padding: 15px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
         .chart-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px; text-align: center; }
-        .chart-wrapper { position: relative; height: 300px; width: 100%; }
+        .chart-type-switcher { display: flex; justify-content: center; gap: 6px; margin-bottom: 12px; }
+        .chart-type-btn { font: inherit; font-size: 11px; font-weight: 500; cursor: pointer; background: #f8f9fa; border: 1px solid #e0e0e0; color: #666; padding: 4px 10px; border-radius: 4px; transition: all 0.15s; }
+        .chart-type-btn:hover { border-color: #f27340; color: #f27340; }
+        .chart-type-btn.active { background: #f27340; border-color: #f27340; color: #fff; }
+        /* line-height:0 kills the phantom baseline gap a canvas gets before Chart.js
+           applies its own display:block style (canvas defaults to inline, so it sits
+           on a text line and reserves descender space below it); overflow:hidden is a
+           backstop so nothing downstream (like the pin/unpin buttons) can ever be
+           overlapped even if some future chart type computes a taller canvas. */
+        .chart-wrapper { position: relative; height: 300px; width: 100%; line-height: 0; overflow: hidden; }
         .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 15px; margin-top: 15px; }
+        .chart-actions { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+        .chart-pin-btn, .chart-unpin-btn { font: inherit; font-size: 11px; font-weight: 500; cursor: pointer; border-radius: 4px; padding: 4px 10px; transition: all 0.15s; }
+        .pin-dashboard-select { font: inherit; font-size: 11px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 4px 6px; max-width: 160px; }
+        .chart-pin-btn { background: #fff; border: 1px solid #e0e0e0; color: #666; }
+        .chart-pin-btn:hover:not(:disabled) { border-color: #f27340; color: #f27340; }
+        .chart-pin-btn:disabled { background: #f0f0f0; color: #4caf50; border-color: #c8e6c9; cursor: default; }
+        .chart-unpin-btn { background: #fff; border: 1px solid #ffcdd2; color: #c62828; }
+        .chart-unpin-btn:hover { background: #ffebee; }
+
+        .dashboard-view { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #e0e0e0; background: #fff; }
+        .dashboard-header h2 { font-size: 18px; font-weight: 600; color: #333; }
+        .dashboard-empty { padding: 40px 20px; text-align: center; color: #999; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -143,10 +187,18 @@
 
     <div class="main-container">
         <div class="sidebar">
-            <div class="sidebar-header">
+            <div class="sidebar-tabs">
+                <button class="sidebar-tab active" id="chatsTabBtn" onclick="switchSidebarTab('chats')">💬 Chats</button>
+                <button class="sidebar-tab" id="dashboardsTabBtn" onclick="switchSidebarTab('dashboards')">📊 Dashboards</button>
+            </div>
+            <div class="sidebar-header" id="chatsHeader">
                 <button class="new-chat-btn" onclick="startNewChat()">+ New Chat</button>
             </div>
+            <div class="sidebar-header" id="dashboardsHeader" style="display:none;">
+                <button class="new-chat-btn" onclick="createNewDashboard()">+ New Dashboard</button>
+            </div>
             <div class="conversation-list" id="conversationList">Loading...</div>
+            <div class="conversation-list" id="dashboardList" style="display:none;">Loading...</div>
         </div>
 
         <div class="content-area">
@@ -196,6 +248,14 @@
                     <button onclick="send()">Send</button>
                 </div>
             </div>
+
+            <div class="dashboard-view" id="dashboardView" style="display:none;">
+                <div class="dashboard-header">
+                    <h2 id="dashboardTitle">📊 Dashboard</h2>
+                    <button class="btn-secondary" onclick="showChat()">&larr; Back to Chat</button>
+                </div>
+                <div class="chart-grid" id="dashboardGrid" style="padding: 20px;"></div>
+            </div>
         </div>
     </div>
 
@@ -208,89 +268,54 @@
             </div>
 
             <div class="form-group">
-                <label>LLM Provider</label>
-                <select id="llmProvider" onchange="updateModelOptions()">
-                    <option value="local_llm">Local LLM</option>
-                    <option value="gemini">Google Gemini</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="nvidia_nim">NVIDIA NIM</option>
-                    <option value="lm_studio">LM Studio</option>
-                </select>
-            </div>
+                <label>LLM Profiles</label>
+                <div class="mcp-server-list" id="llmProfileList">Loading...</div>
 
-            <!-- Local LLM Settings (also used by NVIDIA NIM and LM Studio) -->
-            <div id="ollamaSettings" style="display:none;">
-                <div class="form-group">
-                    <label>API Endpoint URL</label>
-                    <input type="text" id="ollamaUrl" placeholder="e.g., http://127.0.0.1:11434, http://127.0.0.1:1234/v1, or http://127.0.0.1:8000/v1">
-                    <small style="color: #888; font-size: 12px; margin-top: 4px; display: block;">
-                        Local LLM server endpoint or OpenAI-compatible API endpoint
-                    </small>
+                <div class="mcp-add-row" style="margin-bottom: 8px;">
+                    <input type="text" id="llmProfileName" placeholder="Name (e.g. Work Gemini)">
+                    <select id="llmProfileType" onchange="updateLlmFormFields()">
+                        <option value="local_llm">Local LLM</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="nvidia_nim">NVIDIA NIM</option>
+                        <option value="lm_studio">LM Studio</option>
+                    </select>
                 </div>
-                <div class="form-group">
-                    <label>Model Name</label>
-                    <input type="text" id="ollamaModel" placeholder="e.g., deepseek-r1:32b or meta/llama-3.1-8b-instruct">
+                <div id="llmUrlField" style="margin-bottom: 8px;">
+                    <input type="text" id="llmProfileUrl" placeholder="API Endpoint URL, e.g. http://127.0.0.1:1234/v1" style="width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
                 </div>
-            </div>
-
-            <!-- Gemini Settings -->
-            <div id="geminiSettings" style="display:none;">
-                <div class="form-group">
-                    <label>Gemini API Key</label>
-                    <input type="password" id="geminiApiKey" placeholder="Your Gemini API key">
+                <div id="llmApiKeyField" style="display:none; margin-bottom: 8px;">
+                    <input type="password" id="llmProfileApiKey" placeholder="API Key" style="width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
                 </div>
-                <div class="form-group">
-                    <label>Gemini Model</label>
-                    <input type="text" id="geminiModel" placeholder="e.g., gemini-2.5-flash">
+                <div class="mcp-add-row">
+                    <input type="text" id="llmProfileModel" placeholder="Model name">
+                    <button type="button" class="btn-secondary" id="llmRefreshModelsBtn" style="display:none; margin-left:0; white-space:nowrap;" onclick="loadLmStudioModelsForForm()">Refresh</button>
+                    <button type="button" class="btn-secondary" id="llmCancelEditBtn" style="display:none; margin-left:0;" onclick="cancelEditLlmProfile()">Cancel</button>
+                    <button type="button" class="btn-secondary" id="llmFormSubmitBtn" style="margin-left:0;" onclick="submitLlmProfileForm()">Add</button>
                 </div>
-            </div>
-
-            <!-- OpenAI Settings -->
-            <div id="openaiSettings" style="display:none;">
-                <div class="form-group">
-                    <label>OpenAI API Key</label>
-                    <input type="password" id="openaiApiKey" placeholder="Your OpenAI API key">
-                </div>
-                <div class="form-group">
-                    <label>OpenAI Model</label>
-                    <input type="text" id="openaiModel" placeholder="e.g., gpt-4">
-                </div>
-            </div>
-
-            <!-- NVIDIA NIM Settings (shares Local LLM config) -->
-            <div id="nvidiaNimSettings" style="display:none;">
-                <p style="color: #888; font-size: 14px; margin: 10px 0;">
-                    NVIDIA NIM uses the same configuration as Local LLM (see above).
-                    Make sure to set the URL to your NIM's OpenAI-compatible endpoint.
-                </p>
-            </div>
-
-            <!-- LM Studio Settings (shares Local LLM config) -->
-            <div id="lmStudioSettings" style="display:none;">
-                <p style="color: #888; font-size: 14px; margin: 10px 0;">
-                    LM Studio uses the same configuration as Local LLM (see above).
-                    Set the URL to LM Studio's OpenAI-compatible endpoint, e.g. http://127.0.0.1:1234/v1.
-                </p>
-                <div class="form-group">
-                    <label>Available Models</label>
-                    <div style="display: flex; gap: 8px;">
-                        <select id="lmStudioModelSelect" style="flex: 1;" onchange="if(this.value){document.getElementById('ollamaModel').value = this.value;}">
-                            <option value="">-- Click Refresh to load models --</option>
-                        </select>
-                        <button type="button" class="btn-secondary" style="margin-left: 0; white-space: nowrap;" onclick="loadLmStudioModels()">Refresh</button>
-                    </div>
-                    <small id="lmStudioModelStatus" style="color: #888; font-size: 12px; margin-top: 4px; display: block;"></small>
-                </div>
+                <small id="llmProfileFormStatus" style="color:#888; font-size:12px; display:block; margin-top:4px;"></small>
             </div>
 
             <div class="form-group">
-                <label>MCP Server URL</label>
-                <input type="text" id="mcpUrl" placeholder="e.g., http://127.0.0.1:8001">
-            </div>
+                <label>MCP Servers</label>
+                <div class="mcp-server-list" id="mcpServerList">Loading...</div>
 
-            <div class="form-group">
-                <label>MCP Endpoint</label>
-                <input type="text" id="mcpEndpoint" placeholder="e.g., /mcp">
+                <div class="mcp-add-row">
+                    <input type="text" id="newMcpName" placeholder="Name (e.g. Teradata)">
+                    <input type="text" id="newMcpUrl" placeholder="URL (e.g. http://127.0.0.1:8001/mcp)">
+                    <button type="button" class="btn-secondary" style="margin-left: 0;" onclick="addMcpServer()">Add</button>
+                </div>
+
+                <details style="margin-top: 10px;">
+                    <summary style="cursor: pointer; font-size: 12px; font-weight: 600; color: #555;">Paste JSON config</summary>
+                    <p style="color: #888; font-size: 12px; margin: 8px 0;">
+                        Claude Desktop / Cursor style: <code>{"mcpServers": {"name": {"url": "..."}}}</code>.
+                        Only url-based (remote) servers are supported — command-based local servers will be listed as skipped.
+                    </p>
+                    <textarea id="mcpImportJson" rows="5" style="width: 100%; font-family: monospace; font-size: 12px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;" placeholder='{"mcpServers": {"name": {"url": "http://host:port/mcp"}}}'></textarea>
+                    <button type="button" class="btn-secondary" style="margin-left: 0; margin-top: 8px;" onclick="importMcpServersJson()">Import</button>
+                    <div id="mcpImportResult" style="font-size: 12px; margin-top: 8px;"></div>
+                </details>
             </div>
 
             <details style="margin-top: 20px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
@@ -299,8 +324,7 @@
             </details>
 
             <div style="margin-top: 20px;">
-                <button class="btn-primary" onclick="saveSettings()">Save & Apply</button>
-                <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
+                <button class="btn-primary" onclick="closeSettings()">Close</button>
             </div>
         </div>
     </div>
@@ -313,20 +337,30 @@
         async function init() {
             console.log('Initializing...');
 
-            // Check MCP
+            // Check MCP (per-server now - see /api/mcp/health)
             try {
                 const r = await Promise.race([
                     fetch('/api/mcp/health'),
                     new Promise((_, reject) => setTimeout(() => reject(new Error('MCP timeout')), 5000))
                 ]);
                 const d = await r.json();
-                if (r.ok && !d.error) {
+                if (!r.ok || d.error) throw new Error(d.error || 'Connection failed');
+
+                const servers = d.servers || [];
+                const okCount = servers.filter(s => s.status === 'ok').length;
+                if (servers.length === 0) {
+                    document.getElementById('mcpDot').className = 'dot red';
+                    document.getElementById('mcpStatus').textContent = 'no servers configured';
+                } else if (okCount === servers.length) {
                     document.getElementById('mcpDot').className = 'dot green';
-                    document.getElementById('mcpStatus').textContent = `connected (${d.tools_count} tools)`;
-                    loadTools();
+                    document.getElementById('mcpStatus').textContent = `${servers.length} server${servers.length > 1 ? 's' : ''}, ${d.total_tools} tools`;
+                } else if (okCount > 0) {
+                    document.getElementById('mcpDot').className = 'dot yellow';
+                    document.getElementById('mcpStatus').textContent = `${okCount}/${servers.length} servers up, ${d.total_tools} tools`;
                 } else {
-                    throw new Error(d.error || 'Connection failed');
+                    throw new Error(servers.map(s => `${s.name}: ${s.error}`).join('; '));
                 }
+                if (okCount > 0) loadTools();
             } catch (e) {
                 console.error('MCP error:', e);
                 document.getElementById('mcpDot').className = 'dot red';
@@ -334,7 +368,16 @@
                 document.getElementById('mcpError').innerHTML = `<div class="error-msg">MCP: ${e.message}</div>`;
             }
 
-            // Check LLM
+            await checkLlmHealth();
+
+            loadConversationList();
+
+            console.log('Initialization complete');
+        }
+
+        // Re-callable on its own (not just from init()) so activating/editing
+        // an LLM profile can refresh the header status immediately.
+        async function checkLlmHealth() {
             try {
                 const r = await Promise.race([
                     fetch('/api/llm/health'),
@@ -350,10 +393,6 @@
                 document.getElementById('llmDot').className = 'dot red';
                 document.getElementById('llmStatus').textContent = 'error';
             }
-
-            loadConversationList();
-
-            console.log('Initialization complete');
         }
 
         async function loadTools() {
@@ -587,6 +626,7 @@
         }
 
         function startNewChat() {
+            showChat();
             currentConversationId = null;
             currentMessages = [];
             history = [];
@@ -598,6 +638,7 @@
         }
 
         async function loadConversation(id) {
+            showChat();
             try {
                 const conv = await fetch(`/api/conversations/${id}`).then(r => r.json());
                 if (conv.error) {
@@ -732,11 +773,17 @@
 
         // Chart rendering
         const chartInstances = {};
+        const chartConfigs = {};  // last-used config per canvasId, so switchChartType() can rebuild with a new type from the same labels/data/colors
+        const dashboardChartMeta = {};  // canvasId -> pinned chart id, for canvases rendered on the dashboard view (see loadDashboard())
         const defaultColors = ['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548', '#607D8B', '#F44336'];
+        const CHART_TYPES = ['bar', 'line', 'pie', 'doughnut', 'radar'];
+        const RADIAL_TYPES = ['pie', 'doughnut', 'radar'];
 
         function renderChart(canvasId, chartConfig) {
             const ctx = document.getElementById(canvasId);
             if (!ctx) return;
+
+            chartConfigs[canvasId] = chartConfig;
 
             // Destroy existing chart if any
             if (chartInstances[canvasId]) {
@@ -770,7 +817,7 @@
                             display: false
                         }
                     },
-                    scales: ['pie', 'doughnut'].includes(chartConfig.type) ? {} : {
+                    scales: RADIAL_TYPES.includes(chartConfig.type) ? {} : {
                         y: { beginAtZero: true }
                     }
                 }
@@ -779,8 +826,245 @@
             chartInstances[canvasId] = new Chart(ctx, config);
         }
 
+        // Switches a rendered chart to a different type, reusing its original
+        // labels/data/colors - renderChart() already destroys and recreates
+        // the Chart.js instance, so this just needs to hand it a config with
+        // .type changed.
+        function switchChartType(canvasId, newType) {
+            const cfg = chartConfigs[canvasId];
+            if (!cfg) return;
+            renderChart(canvasId, {...cfg, type: newType});
+
+            const switcher = document.querySelector(`.chart-type-switcher[data-canvas="${canvasId}"]`);
+            if (switcher) {
+                switcher.querySelectorAll('.chart-type-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.type === newType);
+                });
+            }
+
+            // Dashboard cards persist their type, so re-opening the dashboard
+            // later doesn't reset back to whatever type it was pinned as.
+            const pinnedId = dashboardChartMeta[canvasId];
+            if (pinnedId && currentDashboardId) {
+                fetch(`/api/dashboards/${currentDashboardId}/charts/${pinnedId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({type: newType})
+                }).catch(e => console.error('Failed to persist chart type:', e));
+            }
+        }
+
+        // ---- Dashboard: pin a chart snapshot, view/manage pinned charts ----
+
+        // ---- Sidebar tabs: Chats vs Dashboards ----
+
+        function switchSidebarTab(tab) {
+            const isChats = tab === 'chats';
+            document.getElementById('chatsTabBtn').classList.toggle('active', isChats);
+            document.getElementById('dashboardsTabBtn').classList.toggle('active', !isChats);
+            document.getElementById('chatsHeader').style.display = isChats ? '' : 'none';
+            document.getElementById('dashboardsHeader').style.display = isChats ? 'none' : '';
+            document.getElementById('conversationList').style.display = isChats ? '' : 'none';
+            document.getElementById('dashboardList').style.display = isChats ? 'none' : '';
+            if (!isChats) loadDashboardList();
+        }
+
+        async function loadDashboardList() {
+            const list = document.getElementById('dashboardList');
+            try {
+                const d = await fetch('/api/dashboards').then(r => r.json());
+                renderDashboardList(d.dashboards || []);
+            } catch (e) {
+                list.innerHTML = '<div style="padding: 15px; color: #f44336; font-size: 12px;">Error loading dashboards</div>';
+            }
+        }
+
+        function renderDashboardList(dashboards) {
+            const list = document.getElementById('dashboardList');
+            if (dashboards.length === 0) {
+                list.innerHTML = '<div style="padding: 15px; color: #999; font-size: 12px;">No dashboards yet</div>';
+                return;
+            }
+            list.innerHTML = dashboards.map(d => `
+                <div class="conv-item ${d.id === currentDashboardId ? 'active' : ''}" data-id="${d.id}" onclick="showDashboard('${d.id}')">
+                    <span class="conv-title">${escapeHtml(d.name)} <span style="color:#999;">(${d.chart_count})</span></span>
+                    <button class="conv-delete" onclick="event.stopPropagation(); deleteDashboardConfirm('${d.id}', '${escapeHtml(d.name)}')" title="Delete">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        function highlightActiveDashboard() {
+            document.querySelectorAll('#dashboardList .conv-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.id === currentDashboardId);
+            });
+        }
+
+        async function createNewDashboard() {
+            const name = prompt('Dashboard name:');
+            if (!name) return;
+            try {
+                const r = await fetch('/api/dashboards', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name})
+                });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error || 'Failed to create dashboard');
+                await loadDashboardList();
+                showDashboard(d.id);
+            } catch (e) {
+                alert('Error creating dashboard: ' + e.message);
+            }
+        }
+
+        async function deleteDashboardConfirm(id, name) {
+            if (!confirm(`Delete dashboard "${name}" and everything pinned to it?`)) return;
+            try {
+                await fetch(`/api/dashboards/${id}`, {method: 'DELETE'});
+                if (id === currentDashboardId) showChat();
+                await loadDashboardList();
+            } catch (e) {
+                alert('Error deleting dashboard: ' + e.message);
+            }
+        }
+
+        // ---- Pinning a chart from chat into a chosen dashboard ----
+
+        async function populateDashboardSelect(selectEl) {
+            if (!selectEl) return;
+            try {
+                const d = await fetch('/api/dashboards').then(r => r.json());
+                const dashboards = d.dashboards || [];
+                selectEl.innerHTML = dashboards.map(db => `<option value="${db.id}">${escapeHtml(db.name)}</option>`).join('')
+                    + `<option value="__new__">+ New dashboard...</option>`;
+            } catch (e) {
+                selectEl.innerHTML = `<option value="__new__">+ New dashboard...</option>`;
+            }
+        }
+
+        async function pinChartToSelected(canvasId) {
+            const cfg = chartConfigs[canvasId];
+            if (!cfg) return;
+            const select = document.getElementById(`pin-select-${canvasId}`);
+            let dashboardId = select.value;
+
+            if (!dashboardId || dashboardId === '__new__') {
+                const name = prompt('New dashboard name:');
+                if (!name) return;
+                try {
+                    const r = await fetch('/api/dashboards', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name})
+                    });
+                    const created = await r.json();
+                    if (!r.ok) throw new Error(created.error || 'Failed to create dashboard');
+                    dashboardId = created.id;
+                    await populateDashboardSelect(select);
+                    select.value = dashboardId;
+                } catch (e) {
+                    alert('Error creating dashboard: ' + e.message);
+                    return;
+                }
+            }
+
+            const btn = document.querySelector(`.chart-pin-btn[data-canvas="${canvasId}"]`);
+            try {
+                const r = await fetch(`/api/dashboards/${dashboardId}/charts`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        title: cfg.title || 'Chart', type: cfg.type || 'bar',
+                        labels: cfg.labels || [], data: cfg.data || [], colors: cfg.colors || null
+                    })
+                });
+                if (!r.ok) throw new Error((await r.json()).error || 'Failed to pin chart');
+                if (btn) { btn.textContent = '📌 Pinned'; btn.disabled = true; select.disabled = true; }
+            } catch (e) {
+                alert('Error pinning chart: ' + e.message);
+            }
+        }
+
+        // ---- Viewing a dashboard ----
+
+        let currentDashboardId = null;
+
+        function showDashboard(id) {
+            currentDashboardId = id;
+            document.getElementById('chat').style.display = 'none';
+            document.querySelector('.input-area').style.display = 'none';
+            document.getElementById('dashboardView').style.display = 'flex';
+            highlightActiveDashboard();
+            loadDashboard();
+        }
+
+        function showChat() {
+            currentDashboardId = null;
+            document.getElementById('dashboardView').style.display = 'none';
+            document.getElementById('chat').style.display = '';
+            document.querySelector('.input-area').style.display = '';
+            highlightActiveDashboard();
+        }
+
+        async function loadDashboard() {
+            const grid = document.getElementById('dashboardGrid');
+            if (!currentDashboardId) return;
+            try {
+                const d = await fetch(`/api/dashboards/${currentDashboardId}`).then(r => r.json());
+                if (d.error) throw new Error(d.error);
+                document.getElementById('dashboardTitle').textContent = '📊 ' + d.name;
+                renderDashboardGrid(d.charts || []);
+            } catch (e) {
+                grid.innerHTML = '<div class="dashboard-empty">Error loading dashboard</div>';
+            }
+        }
+
+        function renderDashboardGrid(charts) {
+            const grid = document.getElementById('dashboardGrid');
+            if (charts.length === 0) {
+                grid.innerHTML = '<div class="dashboard-empty">No pinned charts yet. Open a chat, generate a chart, and click "Pin" below it.</div>';
+                return;
+            }
+
+            grid.innerHTML = charts.map(c => {
+                const canvasId = `dash-${c.id}`;
+                dashboardChartMeta[canvasId] = c.id;
+                const currentType = c.type || 'bar';
+                return `
+                    <div class="chart-container">
+                        <div class="chart-title">${escapeHtml(c.title || 'Chart')}</div>
+                        <div class="chart-type-switcher" data-canvas="${canvasId}">
+                            ${CHART_TYPES.map(t => `
+                                <button type="button" class="chart-type-btn ${t === currentType ? 'active' : ''}" data-type="${t}" onclick="switchChartType('${canvasId}', '${t}')">${t.charAt(0).toUpperCase() + t.slice(1)}</button>
+                            `).join('')}
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="${canvasId}"></canvas>
+                        </div>
+                        <div class="chart-actions">
+                            <button type="button" class="chart-unpin-btn" onclick="unpinChart('${c.id}')">Unpin</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            setTimeout(() => {
+                charts.forEach(c => renderChart(`dash-${c.id}`, c));
+            }, 50);
+        }
+
+        async function unpinChart(chartId) {
+            if (!confirm('Remove this chart from the dashboard?')) return;
+            try {
+                await fetch(`/api/dashboards/${currentDashboardId}/charts/${chartId}`, {method: 'DELETE'});
+                delete dashboardChartMeta[`dash-${chartId}`];
+                await loadDashboard();
+            } catch (e) {
+                alert('Error unpinning chart: ' + e.message);
+            }
+        }
+
         function processCharts(text) {
-            const chartRegex = /```chart\\s*([\\s\\S]*?)```/g;
+            // A regex literal doesn't need the double backslashes a string would -
+            // \\s here would match a literal backslash-then-s, never real whitespace,
+            // which meant this never actually matched a real ```chart block.
+            const chartRegex = /```chart\s*([\s\S]*?)```/g;
             const charts = [];
             let match;
             let cleanText = text;
@@ -806,11 +1090,24 @@
             const chartIds = charts.map((_, i) => `chart-${baseId}-${chartCounter++}`);
 
             const chartsHtml = charts.map((chart, i) => {
+                const currentType = chart.type || 'bar';
+                const switcherHtml = `
+                    <div class="chart-type-switcher" data-canvas="${chartIds[i]}">
+                        ${CHART_TYPES.map(t => `
+                            <button type="button" class="chart-type-btn ${t === currentType ? 'active' : ''}" data-type="${t}" onclick="switchChartType('${chartIds[i]}', '${t}')">${t.charAt(0).toUpperCase() + t.slice(1)}</button>
+                        `).join('')}
+                    </div>
+                `;
                 return `
                     <div class="chart-container">
                         <div class="chart-title">${escapeHtml(chart.title || 'Chart')}</div>
+                        ${switcherHtml}
                         <div class="chart-wrapper">
                             <canvas id="${chartIds[i]}"></canvas>
+                        </div>
+                        <div class="chart-actions">
+                            <select class="pin-dashboard-select" id="pin-select-${chartIds[i]}"><option value="__new__">+ New dashboard...</option></select>
+                            <button type="button" class="chart-pin-btn" data-canvas="${chartIds[i]}" onclick="pinChartToSelected('${chartIds[i]}')">📌 Pin</button>
                         </div>
                     </div>
                 `;
@@ -820,6 +1117,7 @@
             setTimeout(() => {
                 charts.forEach((chart, i) => {
                     renderChart(chartIds[i], chart);
+                    populateDashboardSelect(document.getElementById(`pin-select-${chartIds[i]}`));
                 });
             }, 150);
 
@@ -865,120 +1163,254 @@
         }
 
         function openSettings() {
-            // Load current settings
-            fetch('/api/status').then(r => r.json()).then(status => {
-                document.getElementById('llmProvider').value = status.llm_provider;
+            updateLlmFormFields();
+            loadLlmProfiles();
+            loadMcpServers();
+            document.getElementById('settingsModal').classList.add('show');
+        }
 
-                // Local LLM settings
-                document.getElementById('ollamaUrl').value = status.local_llm_url || '';
-                document.getElementById('ollamaModel').value = status.local_llm_model || '';
+        // ---- LLM provider profiles ----
 
-                // Gemini settings
-                document.getElementById('geminiApiKey').value = status.gemini_api_key || '';
-                document.getElementById('geminiModel').value = status.gemini_model || '';
+        const PROVIDER_LABELS = {local_llm: 'Local LLM', gemini: 'Gemini', openai: 'OpenAI', nvidia_nim: 'NVIDIA NIM', lm_studio: 'LM Studio'};
+        let editingLlmProfileId = null;
 
-                // OpenAI settings
-                document.getElementById('openaiApiKey').value = status.openai_api_key || '';
-                document.getElementById('openaiModel').value = status.openai_model || '';
+        async function loadLlmProfiles() {
+            const list = document.getElementById('llmProfileList');
+            try {
+                const d = await fetch('/api/llm/profiles').then(r => r.json());
+                renderLlmProfileList(d.profiles || [], d.active_id);
+            } catch (e) {
+                list.innerHTML = '<div style="padding: 8px; color: #f44336; font-size: 12px;">Error loading profiles</div>';
+            }
+        }
 
-                const mcpUrl = status.mcp_url.replace(status.mcp_url.split('/').pop(), '');
-                document.getElementById('mcpUrl').value = mcpUrl.slice(0, -1);
-                document.getElementById('mcpEndpoint').value = '/' + status.mcp_url.split('/').pop();
+        function renderLlmProfileList(profiles, activeId) {
+            const list = document.getElementById('llmProfileList');
+            if (profiles.length === 0) {
+                list.innerHTML = '<div style="padding: 8px; color: #999; font-size: 12px;">No LLM profiles configured</div>';
+                return;
+            }
+            list.innerHTML = profiles.map(p => `
+                <div class="mcp-server-item">
+                    <button class="llm-active-radio ${p.id === activeId ? 'active' : ''}" title="${p.id === activeId ? 'Active' : 'Click to activate'}" onclick="activateLlmProfile('${p.id}')"></button>
+                    <div class="mcp-server-info">
+                        <div class="mcp-server-name">${escapeHtml(p.name)} <span style="color:#999; font-weight:400;">(${PROVIDER_LABELS[p.provider_type] || p.provider_type})</span></div>
+                        <div class="mcp-server-url">${escapeHtml(p.model || '')}</div>
+                    </div>
+                    <button class="mcp-server-delete" onclick="startEditLlmProfile('${p.id}')" title="Edit">&#9998;</button>
+                    <button class="mcp-server-delete" onclick="deleteLlmProfileConfirm('${p.id}', '${escapeHtml(p.name)}')" title="Delete">&times;</button>
+                </div>
+            `).join('');
+        }
 
-                updateModelOptions();
-                document.getElementById('settingsModal').classList.add('show');
-            });
+        async function activateLlmProfile(id) {
+            try {
+                const r = await fetch(`/api/llm/profiles/${id}/activate`, {method: 'POST'});
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error || 'Failed to activate profile');
+                await loadLlmProfiles();
+                await checkLlmHealth();
+            } catch (e) {
+                alert('Error activating profile: ' + e.message);
+            }
+        }
+
+        async function deleteLlmProfileConfirm(id, name) {
+            if (!confirm(`Delete LLM profile "${name}"?`)) return;
+            try {
+                await fetch(`/api/llm/profiles/${id}`, {method: 'DELETE'});
+                if (editingLlmProfileId === id) cancelEditLlmProfile();
+                await loadLlmProfiles();
+                await checkLlmHealth();
+            } catch (e) {
+                alert('Error deleting profile: ' + e.message);
+            }
+        }
+
+        function updateLlmFormFields() {
+            const type = document.getElementById('llmProfileType').value;
+            const isUrlType = (type === 'local_llm' || type === 'nvidia_nim' || type === 'lm_studio');
+            document.getElementById('llmUrlField').style.display = isUrlType ? 'block' : 'none';
+            document.getElementById('llmApiKeyField').style.display = isUrlType ? 'none' : 'block';
+            document.getElementById('llmRefreshModelsBtn').style.display = type === 'lm_studio' ? 'inline-block' : 'none';
+        }
+
+        async function loadLmStudioModelsForForm() {
+            const url = document.getElementById('llmProfileUrl').value.trim();
+            const status = document.getElementById('llmProfileFormStatus');
+            if (!url) { status.textContent = 'Enter the API Endpoint URL first.'; return; }
+            status.textContent = 'Fetching models from ' + url + '...';
+            try {
+                const r = await fetch('/api/llm/models?url=' + encodeURIComponent(url));
+                const d = await r.json();
+                if (!r.ok || d.error) throw new Error(d.error || 'Failed to fetch models');
+                if (!d.models || d.models.length === 0) { status.textContent = 'No loaded models found - load one in LM Studio first.'; return; }
+                document.getElementById('llmProfileModel').value = d.models[0];
+                status.textContent = `Found: ${d.models.join(', ')}`;
+            } catch (e) {
+                status.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        async function startEditLlmProfile(id) {
+            const d = await fetch('/api/llm/profiles').then(r => r.json());
+            const p = (d.profiles || []).find(x => x.id === id);
+            if (!p) return;
+            editingLlmProfileId = id;
+            document.getElementById('llmProfileName').value = p.name;
+            document.getElementById('llmProfileType').value = p.provider_type;
+            document.getElementById('llmProfileUrl').value = p.url || '';
+            document.getElementById('llmProfileApiKey').value = p.api_key || '';
+            document.getElementById('llmProfileModel').value = p.model || '';
+            document.getElementById('llmProfileFormStatus').textContent = '';
+            updateLlmFormFields();
+            document.getElementById('llmFormSubmitBtn').textContent = 'Save changes';
+            document.getElementById('llmCancelEditBtn').style.display = 'inline-block';
+        }
+
+        function cancelEditLlmProfile() {
+            editingLlmProfileId = null;
+            document.getElementById('llmProfileName').value = '';
+            document.getElementById('llmProfileUrl').value = '';
+            document.getElementById('llmProfileApiKey').value = '';
+            document.getElementById('llmProfileModel').value = '';
+            document.getElementById('llmProfileFormStatus').textContent = '';
+            document.getElementById('llmFormSubmitBtn').textContent = 'Add';
+            document.getElementById('llmCancelEditBtn').style.display = 'none';
+        }
+
+        async function submitLlmProfileForm() {
+            const name = document.getElementById('llmProfileName').value.trim();
+            const provider_type = document.getElementById('llmProfileType').value;
+            const url = document.getElementById('llmProfileUrl').value.trim();
+            const api_key = document.getElementById('llmProfileApiKey').value.trim();
+            const model = document.getElementById('llmProfileModel').value.trim();
+            const status = document.getElementById('llmProfileFormStatus');
+            if (!name) { status.textContent = 'Name is required.'; return; }
+
+            const isEdit = !!editingLlmProfileId;
+            try {
+                const r = await fetch(isEdit ? `/api/llm/profiles/${editingLlmProfileId}` : '/api/llm/profiles', {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, provider_type, url, model, api_key})
+                });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error || 'Failed to save profile');
+                cancelEditLlmProfile();
+                await loadLlmProfiles();
+                await checkLlmHealth();
+            } catch (e) {
+                status.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        // ---- MCP server registry ----
+
+        async function loadMcpServers() {
+            const list = document.getElementById('mcpServerList');
+            try {
+                const d = await fetch('/api/mcp/servers').then(r => r.json());
+                renderMcpServerList(d.servers || []);
+            } catch (e) {
+                list.innerHTML = '<div style="padding: 8px; color: #f44336; font-size: 12px;">Error loading servers</div>';
+            }
+        }
+
+        function renderMcpServerList(servers) {
+            const list = document.getElementById('mcpServerList');
+            if (servers.length === 0) {
+                list.innerHTML = '<div style="padding: 8px; color: #999; font-size: 12px;">No MCP servers configured</div>';
+                return;
+            }
+            list.innerHTML = servers.map(s => `
+                <div class="mcp-server-item ${s.enabled ? '' : 'disabled'}">
+                    <button class="mcp-toggle-switch ${s.enabled ? 'on' : ''}" title="${s.enabled ? 'Enabled' : 'Disabled'}" onclick="toggleMcpServerEnabled('${s.id}', ${s.enabled})"></button>
+                    <div class="mcp-server-info">
+                        <div class="mcp-server-name">${escapeHtml(s.name)}</div>
+                        <div class="mcp-server-url">${escapeHtml(s.url)}</div>
+                    </div>
+                    <button class="mcp-server-delete" onclick="deleteMcpServerConfirm('${s.id}', '${escapeHtml(s.name)}')" title="Delete">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        async function addMcpServer() {
+            const name = document.getElementById('newMcpName').value.trim();
+            const url = document.getElementById('newMcpUrl').value.trim();
+            if (!name || !url) { alert('Both name and URL are required.'); return; }
+            try {
+                const r = await fetch('/api/mcp/servers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, url})
+                });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error || 'Failed to add server');
+                document.getElementById('newMcpName').value = '';
+                document.getElementById('newMcpUrl').value = '';
+                await loadMcpServers();
+            } catch (e) {
+                alert('Error adding server: ' + e.message);
+            }
+        }
+
+        async function toggleMcpServerEnabled(id, currentlyEnabled) {
+            try {
+                await fetch(`/api/mcp/servers/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled: !currentlyEnabled})
+                });
+                await loadMcpServers();
+            } catch (e) {
+                alert('Error updating server: ' + e.message);
+            }
+        }
+
+        async function deleteMcpServerConfirm(id, name) {
+            if (!confirm(`Remove MCP server "${name}"?`)) return;
+            try {
+                await fetch(`/api/mcp/servers/${id}`, {method: 'DELETE'});
+                await loadMcpServers();
+            } catch (e) {
+                alert('Error deleting server: ' + e.message);
+            }
+        }
+
+        async function importMcpServersJson() {
+            const raw = document.getElementById('mcpImportJson').value.trim();
+            const resultEl = document.getElementById('mcpImportResult');
+            if (!raw) { resultEl.innerHTML = '<span style="color:#c62828;">Paste a JSON config first.</span>'; return; }
+            try {
+                const r = await fetch('/api/mcp/servers/import', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({json: raw})
+                });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error || 'Import failed');
+
+                let html = '';
+                if (d.added.length > 0) {
+                    html += `<div style="color:#2e7d32;">Added: ${d.added.map(s => escapeHtml(s.name)).join(', ')}</div>`;
+                }
+                if (d.skipped.length > 0) {
+                    html += `<div style="color:#888;">Skipped: ${d.skipped.map(s => `${escapeHtml(s.name)} (${escapeHtml(s.reason)})`).join('; ')}</div>`;
+                }
+                if (!html) html = '<span style="color:#888;">Nothing to import.</span>';
+                resultEl.innerHTML = html;
+                document.getElementById('mcpImportJson').value = '';
+                await loadMcpServers();
+            } catch (e) {
+                resultEl.innerHTML = `<span style="color:#c62828;">${escapeHtml(e.message)}</span>`;
+            }
         }
 
         function closeSettings() {
             document.getElementById('settingsModal').classList.remove('show');
         }
 
-        function updateModelOptions() {
-            const provider = document.getElementById('llmProvider').value;
-            // Show Local LLM settings for local_llm, nvidia_nim, and lm_studio (they share the same config)
-            document.getElementById('ollamaSettings').style.display = (provider === 'local_llm' || provider === 'nvidia_nim' || provider === 'lm_studio') ? 'block' : 'none';
-            document.getElementById('geminiSettings').style.display = provider === 'gemini' ? 'block' : 'none';
-            document.getElementById('openaiSettings').style.display = provider === 'openai' ? 'block' : 'none';
-            document.getElementById('nvidiaNimSettings').style.display = provider === 'nvidia_nim' ? 'block' : 'none';
-            document.getElementById('lmStudioSettings').style.display = provider === 'lm_studio' ? 'block' : 'none';
-
-            if (provider === 'lm_studio') {
-                loadLmStudioModels();
-            }
-        }
-
-        async function loadLmStudioModels() {
-            const select = document.getElementById('lmStudioModelSelect');
-            const status = document.getElementById('lmStudioModelStatus');
-            const url = document.getElementById('ollamaUrl').value.trim();
-            const currentModel = document.getElementById('ollamaModel').value.trim();
-
-            if (!url) {
-                status.textContent = 'Enter the API Endpoint URL above first.';
-                return;
-            }
-
-            select.innerHTML = '<option value="">Loading...</option>';
-            status.textContent = 'Fetching models from ' + url + '...';
-
-            try {
-                const r = await fetch('/api/llm/models?url=' + encodeURIComponent(url));
-                const d = await r.json();
-
-                if (!r.ok || d.error) {
-                    throw new Error(d.error || 'Failed to fetch models');
-                }
-
-                if (!d.models || d.models.length === 0) {
-                    select.innerHTML = '<option value="">No models found</option>';
-                    status.textContent = 'LM Studio returned no loaded models. Load one in LM Studio first.';
-                    return;
-                }
-
-                select.innerHTML = '<option value="">-- Select a model --</option>' +
-                    d.models.map(m => `<option value="${escapeHtml(m)}" ${m === currentModel ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
-                status.textContent = `Found ${d.models.length} model(s).`;
-            } catch (e) {
-                select.innerHTML = '<option value="">-- Click Refresh to load models --</option>';
-                status.textContent = 'Error: ' + e.message;
-                console.error('Failed to load LM Studio models:', e);
-            }
-        }
-
-        async function saveSettings() {
-            const provider = document.getElementById('llmProvider').value;
-            const config = {
-                llm_provider: provider,
-                local_llm_url: document.getElementById('ollamaUrl').value,
-                local_llm_model: document.getElementById('ollamaModel').value,
-                gemini_api_key: document.getElementById('geminiApiKey').value,
-                gemini_model: document.getElementById('geminiModel').value,
-                openai_api_key: document.getElementById('openaiApiKey').value,
-                openai_model: document.getElementById('openaiModel').value,
-                mcp_url: document.getElementById('mcpUrl').value,
-                mcp_endpoint: document.getElementById('mcpEndpoint').value
-            };
-
-            try {
-                const response = await fetch('/api/config/update', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(config)
-                });
-
-                const result = await response.json();
-                if (result.status === 'ok') {
-                    alert('Settings saved! Reloading...');
-                    closeSettings();
-                    location.reload();
-                } else {
-                    alert('Error saving settings: ' + (result.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Error saving settings: ' + e.message);
-            }
-        }
 
         function toggleMcpDetails(id) {
             const el = document.getElementById(id);

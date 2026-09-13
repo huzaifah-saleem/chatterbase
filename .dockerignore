@@ -7,5 +7,8 @@ __pycache__/
 .DS_Store
 charts/*.png
 conversations/*.json
+data/*.json
+data/*.json.migrated
+data/dashboards/*.json
 *.mov
 README.md
