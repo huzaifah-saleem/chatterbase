@@ -1,6 +1,7 @@
 // Pin a chart (from a chat/agent result) into a chosen dashboard, or create
 // a new one on the fly - parity port of the old pin-to-dashboard flow.
 import { useEffect, useState } from 'react'
+import { Check } from 'lucide-react'
 import { api } from '../lib/api'
 import Modal, { btnPrimary, btnSecondary, inputCls } from './Modal'
 
@@ -40,7 +41,7 @@ export default function PinChartPopover({ chart, onClose }) {
   return (
     <Modal title="Pin chart to dashboard" onClose={onClose}>
       {pinned ? (
-        <div className="text-sm text-good py-4 text-center">📌 Pinned!</div>
+        <div className="text-sm text-good py-4 text-center flex items-center justify-center gap-2"><Check size={16} /> Pinned!</div>
       ) : (
         <div className="flex flex-col gap-3">
           {!creating && dashboards.length > 0 && (

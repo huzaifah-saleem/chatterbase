@@ -5,6 +5,7 @@
 // mode, so a turn can pause mid-conversation for code approval exactly like
 // a task dispatch does (see agent_orchestrator.py's W2 notes).
 import { useEffect, useRef, useState } from 'react'
+import { Pencil } from 'lucide-react'
 import { api } from '../../lib/api'
 import { streamAgentChat } from '../../lib/useAgentChatStream'
 import { Blocks } from '../../components/Blocks'
@@ -126,11 +127,11 @@ export default function ChatTab({ personaId }) {
               key={c.id}
               onClick={() => openChat(c.id)}
               className={`group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition
-                ${c.id === activeId ? 'bg-accent/15 text-accent-hot' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
+                ${c.id === activeId ? 'bg-accent/15 text-accent' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
             >
               <span className="truncate">{c.title}</span>
               <span className="flex items-center gap-1 opacity-60 group-hover:opacity-100 shrink-0">
-                <button onClick={(e) => renameChat(c, e)} className="text-ink-faint hover:text-ink transition">✏️</button>
+                <button onClick={(e) => renameChat(c, e)} className="text-ink-faint hover:text-ink transition"><Pencil size={12} /></button>
                 <button onClick={(e) => removeChat(c.id, e)} className="text-ink-faint hover:text-bad transition">&times;</button>
               </span>
             </div>

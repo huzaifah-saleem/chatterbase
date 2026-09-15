@@ -2,6 +2,7 @@
 // database via chat_handler.py's tool-calling loop. Parity port of the
 // original chat tab, restyled.
 import { useEffect, useRef, useState } from 'react'
+import { Database, ClipboardList, Search, BarChart3, MessageSquare, Pencil } from 'lucide-react'
 import { api } from '../lib/api'
 import { streamChat } from '../lib/useChatStream'
 import { parseChatResponse } from '../lib/parseChatResponse'
@@ -9,10 +10,10 @@ import { Blocks } from '../components/Blocks'
 import PinChartPopover from '../components/PinChartPopover'
 
 const SUGGESTIONS = [
-  { icon: '🗄️', text: 'What databases do I have access to?' },
-  { icon: '📋', text: 'Show me the tables in a database, with row counts' },
-  { icon: '🔍', text: 'Check for data quality issues like missing values' },
-  { icon: '📊', text: 'Analyze and chart the size of my databases' },
+  { icon: Database, text: 'What databases do I have access to?' },
+  { icon: ClipboardList, text: 'Show me the tables in a database, with row counts' },
+  { icon: Search, text: 'Check for data quality issues like missing values' },
+  { icon: BarChart3, text: 'Analyze and chart the size of my databases' },
 ]
 
 export default function ChatView() {
@@ -104,11 +105,11 @@ export default function ChatView() {
               key={c.id}
               onClick={() => openConversation(c.id)}
               className={`group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition
-                ${c.id === activeId ? 'bg-accent/15 text-accent-hot' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
+                ${c.id === activeId ? 'bg-accent/15 text-accent' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
             >
               <span className="truncate">{c.title}</span>
               <span className="flex items-center gap-1 opacity-60 group-hover:opacity-100 shrink-0">
-                <button onClick={(e) => renameConversation(c, e)} className="text-ink-faint hover:text-ink transition">✏️</button>
+                <button onClick={(e) => renameConversation(c, e)} className="text-ink-faint hover:text-ink transition"><Pencil size={12} /></button>
                 <button onClick={(e) => deleteConversation(c.id, e)} className="text-ink-faint hover:text-bad transition">&times;</button>
               </span>
             </div>
@@ -120,13 +121,15 @@ export default function ChatView() {
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center px-8 text-center max-w-xl mx-auto">
-              <div className="w-16 h-16 rounded-2xl grad flex items-center justify-center text-2xl mb-4">💬</div>
+              <div className="w-16 h-16 rounded-2xl grad flex items-center justify-center mb-4 text-white">
+                <MessageSquare size={26} strokeWidth={1.75} />
+              </div>
               <h2 className="text-xl font-semibold text-ink mb-1">Chatterbase</h2>
               <p className="text-sm text-ink-dim mb-6">Ask about your Teradata database in plain English — I'll query, analyze, and visualize the results.</p>
               <div className="grid grid-cols-2 gap-2 w-full">
                 {SUGGESTIONS.map((s, i) => (
                   <button key={i} onClick={() => send(s.text)} className="card card-hover text-left p-3 text-sm text-ink-dim flex items-start gap-2">
-                    <span>{s.icon}</span><span>{s.text}</span>
+                    <s.icon size={16} strokeWidth={1.75} className="shrink-0 mt-0.5 text-ink-faint" /><span>{s.text}</span>
                   </button>
                 ))}
               </div>

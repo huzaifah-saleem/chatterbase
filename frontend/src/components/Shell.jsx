@@ -3,15 +3,16 @@
 // the content it controls, not above it).
 import { NavLink, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { MessageSquare, LayoutDashboard, FileText, Bot, Activity as ActivityIcon, Settings as SettingsIcon } from 'lucide-react'
 import { api } from '../lib/api'
 import SettingsModal from './SettingsModal'
 
 const NAV = [
-  { to: '/', label: 'Chats', icon: '💬', end: true },
-  { to: '/dashboards', label: 'Dashboards', icon: '📊' },
-  { to: '/reports', label: 'Reports', icon: '📄' },
-  { to: '/agents', label: 'Agents', icon: '🤖' },
-  { to: '/activity', label: 'Activity', icon: '📡' },
+  { to: '/', label: 'Chats', icon: MessageSquare, end: true },
+  { to: '/dashboards', label: 'Dashboards', icon: LayoutDashboard },
+  { to: '/reports', label: 'Reports', icon: FileText },
+  { to: '/agents', label: 'Agents', icon: Bot },
+  { to: '/activity', label: 'Activity', icon: ActivityIcon },
 ]
 
 function Logo() {
@@ -66,9 +67,9 @@ export default function Shell() {
           <StatusPill ok={llm.ok} label="LLM" detail={llm.detail} />
           <button
             onClick={() => setSettingsOpen(true)}
-            className="text-xs px-3 py-1.5 rounded-lg bg-panel border border-edge text-ink-dim hover:text-ink hover:border-edge-bright transition"
+            className="text-xs px-3 py-1.5 rounded-lg bg-panel border border-edge text-ink-dim hover:text-ink hover:border-edge-bright transition flex items-center gap-1.5"
           >
-            ⚙ Settings
+            <SettingsIcon size={13} /> Settings
           </button>
         </div>
       </header>
@@ -89,7 +90,7 @@ export default function Shell() {
                  ${isActive ? 'grad text-white shadow-lg shadow-accent/20' : 'text-ink-dim hover:bg-panel hover:text-ink'}`
               }
             >
-              <span className="text-lg leading-none">{n.icon}</span>
+              <n.icon size={19} strokeWidth={1.75} />
               {n.label}
             </NavLink>
           ))}

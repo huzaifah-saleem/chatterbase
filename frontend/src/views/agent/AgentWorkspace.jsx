@@ -3,6 +3,7 @@
 // only Tasks applies to it, matching the old app's General/persona split.
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, MessageSquare, ListChecks, Sparkles, Database, Settings, Zap } from 'lucide-react'
 import { api } from '../../lib/api'
 import ChatTab from './ChatTab'
 import TasksTab from './TasksTab'
@@ -10,13 +11,13 @@ import SkillsTab from './SkillsTab'
 import KnowledgeTab from './KnowledgeTab'
 import SettingsTab from './SettingsTab'
 
-const TABS_GENERAL = [{ key: 'tasks', label: 'Tasks', icon: '✅' }]
+const TABS_GENERAL = [{ key: 'tasks', label: 'Tasks', icon: ListChecks }]
 const TABS_PERSONA = [
-  { key: 'chat', label: 'Chat', icon: '💬' },
-  { key: 'tasks', label: 'Tasks', icon: '✅' },
-  { key: 'skills', label: 'Skills', icon: '🧠' },
-  { key: 'knowledge', label: 'Knowledge', icon: '🗄️' },
-  { key: 'settings', label: 'Settings', icon: '⚙️' },
+  { key: 'chat', label: 'Chat', icon: MessageSquare },
+  { key: 'tasks', label: 'Tasks', icon: ListChecks },
+  { key: 'skills', label: 'Skills', icon: Sparkles },
+  { key: 'knowledge', label: 'Knowledge', icon: Database },
+  { key: 'settings', label: 'Settings', icon: Settings },
 ]
 
 export default function AgentWorkspace() {
@@ -37,15 +38,16 @@ export default function AgentWorkspace() {
   }, [id])
 
   const tabs = isGeneral ? TABS_GENERAL : TABS_PERSONA
-  const color = persona?.color || '#8b94a7'
+  const color = persona?.color || '#5b5d66'
+  const initial = (persona?.name || '?').trim().charAt(0).toUpperCase()
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="border-b border-edge px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/agents')} className="text-ink-faint hover:text-ink text-sm">&larr;</button>
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: `${color}22`, border: `1px solid ${color}55` }}>
-            {isGeneral ? '⚡' : (persona?.emoji || '🤖')}
+          <button onClick={() => navigate('/agents')} className="text-ink-faint hover:text-ink transition"><ArrowLeft size={18} /></button>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${color}18`, border: `1px solid ${color}40`, color }}>
+            {isGeneral ? <Zap size={16} strokeWidth={1.75} /> : <span className="text-sm font-semibold">{initial}</span>}
           </div>
           <div>
             <h2 className="text-sm font-semibold text-ink">{isGeneral ? 'General' : (persona?.name || '…')}</h2>
@@ -60,7 +62,7 @@ export default function AgentWorkspace() {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5
                 ${tab === t.key ? 'bg-accent text-white' : 'text-ink-dim hover:text-ink'}`}
             >
-              <span>{t.icon}</span>{t.label}
+              <t.icon size={14} strokeWidth={1.75} />{t.label}
             </button>
           ))}
         </div>

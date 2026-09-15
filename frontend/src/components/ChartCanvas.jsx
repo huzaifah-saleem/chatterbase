@@ -10,7 +10,7 @@
 import { useEffect, useRef } from 'react'
 import Chart from 'chart.js/auto'
 
-const PALETTE = ['#f27340', '#4C8BF5', '#3ecf8e', '#f0546a', '#a970ff', '#00BCD4', '#f5b940', '#8d6e63']
+const PALETTE = ['#e8590c', '#2f6fed', '#1e8e3e', '#d92d20', '#7c4dff', '#0891b2', '#b45309', '#6d4c41']
 
 export default function ChartCanvas({ type = 'bar', title, labels = [], data = [], colors, height = 220 }) {
   const canvasRef = useRef(null)
@@ -31,8 +31,8 @@ export default function ChartCanvas({ type = 'bar', title, labels = [], data = [
         datasets: [{
           label: title || '',
           data,
-          backgroundColor: isPie ? labels.map((_, i) => palette[i % palette.length]) : palette[0] + 'cc',
-          borderColor: isPie ? '#11151d' : palette[0],
+          backgroundColor: isPie ? labels.map((_, i) => palette[i % palette.length]) : palette[0] + 'e0',
+          borderColor: isPie ? '#ffffff' : palette[0],
           borderWidth: isPie ? 2 : 1,
           borderRadius: type === 'bar' ? 6 : 0,
           tension: type === 'line' ? 0.35 : 0,
@@ -43,12 +43,12 @@ export default function ChartCanvas({ type = 'bar', title, labels = [], data = [
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: isPie, labels: { color: '#8b94a7', boxWidth: 12, font: { size: 11 } } },
+          legend: { display: isPie, labels: { color: '#5b5d66', boxWidth: 12, font: { size: 11 } } },
           title: { display: false },
         },
         scales: isPie ? {} : {
-          x: { ticks: { color: '#8b94a7', font: { size: 11 } }, grid: { color: '#232a38' } },
-          y: { ticks: { color: '#8b94a7', font: { size: 11 } }, grid: { color: '#232a38' }, beginAtZero: true },
+          x: { ticks: { color: '#5b5d66', font: { size: 11 } }, grid: { color: '#eceef1' } },
+          y: { ticks: { color: '#5b5d66', font: { size: 11 } }, grid: { color: '#eceef1' }, beginAtZero: true },
         },
       },
     })

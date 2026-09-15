@@ -1,24 +1,26 @@
 /* Design system: Tailwind v4 theme tokens + a few global primitives.
-   Dark-first palette built around Chatterbase's heritage orange, with card
-   surfaces, subtle borders, and an accent gradient used across the shell. */
+   Light, Databricks-inspired palette: white/near-white surfaces, a deep
+   amber-orange accent (keeps continuity with Chatterbase's original
+   orange identity rather than replacing it), and restrained borders/
+   shadows instead of dark-mode glow effects. */
 @import "tailwindcss";
 
 @theme {
-  --color-base: #0b0e13;
-  --color-panel: #11151d;
-  --color-card: #161b25;
-  --color-card-hover: #1b2130;
-  --color-edge: #232a38;
-  --color-edge-bright: #2f3849;
-  --color-ink: #e8ecf3;
-  --color-ink-dim: #8b94a7;
-  --color-ink-faint: #5c6478;
-  --color-accent: #f27340;
-  --color-accent-hot: #ff8f57;
-  --color-accent-deep: #d65a2e;
-  --color-good: #3ecf8e;
-  --color-warn: #f5b940;
-  --color-bad: #f0546a;
+  --color-base: #f7f7f9;
+  --color-panel: #ffffff;
+  --color-card: #ffffff;
+  --color-card-hover: #f5f5f8;
+  --color-edge: #e4e4ea;
+  --color-edge-bright: #c9c9d2;
+  --color-ink: #1b1c1f;
+  --color-ink-dim: #5b5d66;
+  --color-ink-faint: #8c8e99;
+  --color-accent: #e8590c;
+  --color-accent-hot: #ff6b1a;
+  --color-accent-deep: #b8430a;
+  --color-good: #1e8e3e;
+  --color-warn: #b45309;
+  --color-bad: #d92d20;
   --font-sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 }
@@ -27,21 +29,22 @@ html, body, #root { height: 100%; }
 body { background: var(--color-base); color: var(--color-ink); font-family: var(--font-sans); margin: 0; }
 
 /* Accent gradient used on brand marks, primary buttons, and active states */
-.grad { background-image: linear-gradient(135deg, #f27340 0%, #ff8f57 55%, #ffb347 100%); }
-.grad-text { background-image: linear-gradient(135deg, #f27340, #ffb347); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.grad { background-image: linear-gradient(135deg, #e8590c 0%, #ff6b1a 55%, #ff9142 100%); }
+.grad-text { background-image: linear-gradient(135deg, #e8590c, #ff9142); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 /* Card primitive: everything gallery-like (agents, skills, dashboards) uses this */
 .card {
   background: var(--color-card);
   border: 1px solid var(--color-edge);
-  border-radius: 1rem;
+  border-radius: .75rem;
+  box-shadow: 0 1px 2px rgba(16, 17, 20, .04);
   transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
 }
 .card-hover:hover {
   transform: translateY(-2px);
   border-color: var(--color-edge-bright);
   background: var(--color-card-hover);
-  box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  box-shadow: 0 8px 24px rgba(16, 17, 20, .08);
 }
 
 /* Chart canvases: rules earned the hard way in earlier phases - the wrapper
@@ -57,16 +60,16 @@ body { background: var(--color-base); color: var(--color-ink); font-family: var(
 .md :is(p, ul, ol) { margin: .35rem 0; line-height: 1.55; }
 .md ul { list-style: disc; padding-left: 1.25rem; }
 .md ol { list-style: decimal; padding-left: 1.25rem; }
-.md code { background: #0d1118; border: 1px solid var(--color-edge); border-radius: .3rem; padding: .1rem .35rem; font-family: var(--font-mono); font-size: .85em; }
-.md pre { background: #0d1118; border: 1px solid var(--color-edge); border-radius: .6rem; padding: .75rem; overflow-x: auto; margin: .5rem 0; }
+.md code { background: #f1f1f4; border: 1px solid var(--color-edge); border-radius: .3rem; padding: .1rem .35rem; font-family: var(--font-mono); font-size: .85em; }
+.md pre { background: #f1f1f4; border: 1px solid var(--color-edge); border-radius: .6rem; padding: .75rem; overflow-x: auto; margin: .5rem 0; }
 .md pre code { background: none; border: none; padding: 0; }
 .md :is(h1,h2,h3) { font-weight: 600; margin: .6rem 0 .3rem; }
 .md h1 { font-size: 1.15rem; } .md h2 { font-size: 1.05rem; } .md h3 { font-size: 1rem; }
 .md table { border-collapse: collapse; margin: .5rem 0; font-size: .85rem; }
 .md :is(th, td) { border: 1px solid var(--color-edge); padding: .3rem .6rem; }
-.md th { background: #0d1118; }
-.md strong { color: #fff; }
-.md a { color: var(--color-accent-hot); }
+.md th { background: #f1f1f4; }
+.md strong { color: var(--color-ink); }
+.md a { color: var(--color-accent); }
 
 @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 .pulse { animation: pulse-dot 1.2s ease-in-out infinite; }
@@ -74,8 +77,9 @@ body { background: var(--color-base); color: var(--color-ink); font-family: var(
 @keyframes rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise-in .25s ease both; }
 
-/* Dim the light OSM tile set (MapCanvas.jsx/FlowMapCanvas.jsx) so it sits
-   better against this app's dark UI, without needing a themed tile
-   provider (CARTO's dark set now requires a registered API key). */
-.leaflet-tile-pane { filter: brightness(0.75) saturate(0.85); }
-.leaflet-container { background: var(--color-panel); }
+.leaflet-container { background: var(--color-panel); font-family: var(--font-sans); }
+
+/* Dashboard edit-mode grid (DashboardsView.jsx, react-grid-layout) */
+.react-grid-item.react-grid-placeholder { background: var(--color-accent); opacity: .12; border-radius: .75rem; }
+.react-resizable-handle { opacity: 0; transition: opacity .15s ease; }
+.react-grid-item:hover .react-resizable-handle { opacity: 1; }

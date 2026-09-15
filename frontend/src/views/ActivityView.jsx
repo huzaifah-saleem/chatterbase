@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 
 const KIND_COLOR = {
-  run_start: 'text-accent-hot', done: 'text-good', interrupted: 'text-warn',
-  chat_message: 'text-accent-hot', tool_call: 'text-ink-dim', resume: 'text-ink-dim',
+  run_start: 'text-accent', done: 'text-good', interrupted: 'text-warn',
+  chat_message: 'text-accent', tool_call: 'text-ink-dim', resume: 'text-ink-dim',
 }
 
 function StatCard({ label, value }) {

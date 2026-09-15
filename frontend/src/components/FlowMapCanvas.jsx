@@ -10,9 +10,9 @@ import 'leaflet/dist/leaflet.css'
 // See MapCanvas.jsx for why this is plain OSM tiles, not CARTO's dark set.
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-const ORIGIN_COLOR = '#3ecf8e'
-const DEST_COLOR = '#f0546a'
-const FLOW_COLOR = '#f27340'
+const ORIGIN_COLOR = '#1e8e3e'
+const DEST_COLOR = '#d92d20'
+const FLOW_COLOR = '#e8590c'
 
 function curvedPath([lat1, lng1], [lat2, lng2], bend = 0.15) {
   const mLat = (lat1 + lat2) / 2
@@ -70,8 +70,11 @@ export default function FlowMapCanvas({ flows = [], height = 320 }) {
       map.fitBounds(L.latLngBounds(allLatLngs).pad(0.25), { maxZoom: 12 })
     }
 
-    return () => map.remove()
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize())
+    resizeObserver.observe(containerRef.current)
+
+    return () => { resizeObserver.disconnect(); map.remove() }
   }, [JSON.stringify(flows)])
 
-  return <div ref={containerRef} style={{ height, borderRadius: '10px', overflow: 'hidden' }} />
+  return <div ref={containerRef} style={{ height, width: '100%', borderRadius: '10px', overflow: 'hidden' }} />
 }

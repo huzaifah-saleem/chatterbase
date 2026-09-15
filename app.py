@@ -372,6 +372,47 @@ def delete_dashboard(dashboard_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/dashboards/<dashboard_id>/layout", methods=["PUT"])
+def update_dashboard_layout(dashboard_id):
+    """Persist the chart grid arrangement after a drag/resize in edit mode."""
+    try:
+        layout = request.json.get("layout")
+        if not isinstance(layout, list):
+            return jsonify({"error": "layout must be a list"}), 400
+        return jsonify(dashboard_store.update_layout(dashboard_id, layout))
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dashboards/<dashboard_id>/comments", methods=["POST"])
+def add_dashboard_comment(dashboard_id):
+    try:
+        text = (request.json.get("text") or "").strip()
+        if not text:
+            return jsonify({"error": "text is required"}), 400
+        author = request.json.get("author") or ""
+        return jsonify(dashboard_store.add_comment(dashboard_id, text, author))
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dashboards/<dashboard_id>/comments/<comment_id>", methods=["DELETE"])
+def delete_dashboard_comment(dashboard_id, comment_id):
+    try:
+        existed = dashboard_store.delete_comment(dashboard_id, comment_id)
+        if not existed:
+            return jsonify({"error": "Comment not found"}), 404
+        return jsonify({"status": "ok"})
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/dashboards/<dashboard_id>/charts", methods=["POST"])
 def pin_dashboard_chart(dashboard_id):
     """Pin a chart into this dashboard (a snapshot of type/labels/data/colors, not a live query)"""

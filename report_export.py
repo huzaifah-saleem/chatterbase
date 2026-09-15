@@ -15,7 +15,7 @@ error-prone); a placeholder-token template sidesteps that entirely.
 """
 import json
 
-PALETTE = ['#f27340', '#4C8BF5', '#3ecf8e', '#f0546a', '#a970ff', '#00BCD4', '#f5b940', '#8d6e63']
+PALETTE = ['#e8590c', '#2f6fed', '#1e8e3e', '#d92d20', '#7c4dff', '#0891b2', '#b45309', '#6d4c41']
 
 
 def _escape_html(s):
@@ -68,19 +68,19 @@ _HTML_TEMPLATE = """<!doctype html>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-  body { background:#0b0e14; color:#e5e9f0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; max-width:900px; margin:0 auto; padding:2.5rem 1.5rem 4rem; line-height:1.6; }
+  body { background:#f7f7f9; color:#1b1c1f; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; max-width:900px; margin:0 auto; padding:2.5rem 1.5rem 4rem; line-height:1.6; }
   h1 { font-size:1.6rem; margin-bottom:.25rem; }
-  .meta { color:#8b94a7; font-size:.85rem; margin-bottom:2rem; }
+  .meta { color:#5b5d66; font-size:.85rem; margin-bottom:2rem; }
   .block { margin:1.75rem 0; }
-  .chart-card { background:#11151d; border:1px solid #232a38; border-radius:12px; padding:1.25rem; }
+  .chart-card { background:#ffffff; border:1px solid #e4e4ea; border-radius:12px; padding:1.25rem; box-shadow:0 1px 2px rgba(16,17,20,.04); }
   .chart-title { font-weight:600; margin-bottom:.75rem; font-size:.95rem; }
   canvas { max-height:360px; }
-  .map { height:360px; border-radius:10px; overflow:hidden; filter:brightness(0.75) saturate(0.85); }
+  .map { height:360px; border-radius:10px; overflow:hidden; }
   table { border-collapse:collapse; width:100%; font-size:.85rem; }
-  th, td { border:1px solid #232a38; padding:.4rem .7rem; text-align:left; }
-  th { background:#151a24; }
-  a { color:#f27340; }
-  code { background:#151a24; padding:.1rem .35rem; border-radius:.3rem; }
+  th, td { border:1px solid #e4e4ea; padding:.4rem .7rem; text-align:left; }
+  th { background:#f1f1f4; }
+  a { color:#e8590c; }
+  code { background:#f1f1f4; padding:.1rem .35rem; border-radius:.3rem; }
 </style>
 </head>
 <body>
@@ -128,7 +128,7 @@ function renderPointMap(wrap, chart) {
   pts.forEach((p) => {
     const v = Number.isFinite(p.value) ? p.value : 1;
     const r = 6 + (maxV > minV ? ((v - minV) / (maxV - minV)) * 18 : 0);
-    L.circleMarker([p.lat, p.lng], { radius: r, color: '#f27340', weight: 1.5, fillColor: '#f27340', fillOpacity: 0.55 })
+    L.circleMarker([p.lat, p.lng], { radius: r, color: '#e8590c', weight: 1.5, fillColor: '#e8590c', fillOpacity: 0.55 })
       .addTo(map).bindTooltip(p.label || (p.lat.toFixed(3) + ', ' + p.lng.toFixed(3)));
   });
   map.fitBounds(L.latLngBounds(pts.map((p) => [p.lat, p.lng])).pad(0.25), { maxZoom: 12 });
@@ -143,10 +143,10 @@ function renderFlowMap(wrap, chart) {
   const all = [];
   flows.forEach((f) => {
     const o = [f.origin_lat, f.origin_lng], d = [f.dest_lat, f.dest_lng];
-    L.polyline([o, d], { color: '#f27340', weight: 2.5, opacity: 0.65 }).addTo(map)
+    L.polyline([o, d], { color: '#e8590c', weight: 2.5, opacity: 0.65 }).addTo(map)
       .bindTooltip((f.origin_label || 'Origin') + ' \\u2192 ' + (f.dest_label || 'Destination'));
-    L.circleMarker(o, { radius: 5, color: '#3ecf8e', fillColor: '#3ecf8e', fillOpacity: 0.9 }).addTo(map);
-    L.circleMarker(d, { radius: 5, color: '#f0546a', fillColor: '#f0546a', fillOpacity: 0.9 }).addTo(map);
+    L.circleMarker(o, { radius: 5, color: '#1e8e3e', fillColor: '#1e8e3e', fillOpacity: 0.9 }).addTo(map);
+    L.circleMarker(d, { radius: 5, color: '#d92d20', fillColor: '#d92d20', fillOpacity: 0.9 }).addTo(map);
     all.push(o, d);
   });
   map.fitBounds(L.latLngBounds(all).pad(0.25), { maxZoom: 12 });
@@ -161,16 +161,16 @@ function renderClassicChart(wrap, chart) {
     type: chart.type || 'bar',
     data: { labels, datasets: [{
       label: chart.title || '', data,
-      backgroundColor: isPie ? labels.map((_, i) => colors[i % colors.length]) : colors[0] + 'cc',
-      borderColor: isPie ? '#11151d' : colors[0], borderWidth: isPie ? 2 : 1,
+      backgroundColor: isPie ? labels.map((_, i) => colors[i % colors.length]) : colors[0] + 'e0',
+      borderColor: isPie ? '#ffffff' : colors[0], borderWidth: isPie ? 2 : 1,
       borderRadius: chart.type === 'bar' ? 6 : 0, tension: chart.type === 'line' ? 0.35 : 0,
     }] },
     options: {
       responsive: true,
-      plugins: { legend: { display: isPie, labels: { color: '#8b94a7' } } },
+      plugins: { legend: { display: isPie, labels: { color: '#5b5d66' } } },
       scales: isPie ? {} : {
-        x: { ticks: { color: '#8b94a7' }, grid: { color: '#232a38' } },
-        y: { ticks: { color: '#8b94a7' }, grid: { color: '#232a38' }, beginAtZero: true },
+        x: { ticks: { color: '#5b5d66' }, grid: { color: '#eceef1' } },
+        y: { ticks: { color: '#5b5d66' }, grid: { color: '#eceef1' }, beginAtZero: true },
       },
     },
   });

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Download } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
 import AgentFormModal from '../../components/AgentFormModal'
@@ -28,9 +29,9 @@ export default function SettingsTab({ persona, onUpdated }) {
           <p className="text-xs text-ink-dim">Export this agent's identity and skills as a file another Chatterbase instance can import. Chat/task history and the auto-generated database-knowledge skill are not included.</p>
           <a
             href={`/api/agent/personas/${persona.id}/export`}
-            className="text-xs px-3 py-1.5 rounded-lg bg-edge hover:bg-edge-bright text-ink transition self-start"
+            className="text-xs px-3 py-1.5 rounded-lg bg-edge hover:bg-edge-bright text-ink transition self-start flex items-center gap-1.5"
           >
-            ⬇ Export Agent
+            <Download size={13} /> Export Agent
           </a>
         </div>
 

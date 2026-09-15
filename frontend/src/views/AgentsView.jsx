@@ -1,5 +1,6 @@
 // Agent marketplace: card grid, the visual centerpiece of the redesign.
 import { useEffect, useRef, useState } from 'react'
+import { Upload, Plus } from 'lucide-react'
 import { api } from '../lib/api'
 import AgentCard from '../components/AgentCard'
 import AgentFormModal from '../components/AgentFormModal'
@@ -55,15 +56,15 @@ export default function AgentsView() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={importing}
-              className="text-xs px-3 py-1.5 rounded-lg bg-panel border border-edge text-ink-dim hover:text-ink hover:border-edge-bright transition disabled:opacity-50 shrink-0"
+              className="text-xs px-3 py-1.5 rounded-lg bg-panel border border-edge text-ink-dim hover:text-ink hover:border-edge-bright transition disabled:opacity-50 shrink-0 flex items-center gap-1.5"
             >
-              {importing ? 'Importing…' : '⬆ Import Agent'}
+              <Upload size={13} /> {importing ? 'Importing…' : 'Import Agent'}
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          <AgentCard persona={{ name: 'General', emoji: '⚡' }} isGeneral />
+          <AgentCard persona={{ name: 'General' }} isGeneral />
           {personas.map((p) => (
             <AgentCard key={p.id} persona={p} skillCount={skillCounts[p.id]} />
           ))}
@@ -71,7 +72,7 @@ export default function AgentsView() {
             onClick={() => setShowCreate(true)}
             className="card card-hover border-dashed flex flex-col items-center justify-center gap-2 p-5 text-ink-faint hover:text-ink min-h-[168px]"
           >
-            <span className="text-3xl grad-text font-light">+</span>
+            <Plus size={22} className="text-accent" strokeWidth={2} />
             <span className="text-sm font-medium">Create Agent</span>
           </button>
         </div>

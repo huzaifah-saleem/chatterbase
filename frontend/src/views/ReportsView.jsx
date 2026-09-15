@@ -5,6 +5,7 @@
 // Rendering reuses Blocks.jsx exactly - a report's blocks are the same
 // {type: text|table|chart} shape chat/task results already use.
 import { useEffect, useState } from 'react'
+import { FileText, Pencil, Download } from 'lucide-react'
 import { api } from '../lib/api'
 import { Blocks } from '../components/Blocks'
 
@@ -45,11 +46,11 @@ export default function ReportsView() {
               key={r.id}
               onClick={() => setActiveId(r.id)}
               className={`group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition
-                ${r.id === activeId ? 'bg-accent/15 text-accent-hot' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
+                ${r.id === activeId ? 'bg-accent/15 text-accent' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
             >
               <span className="truncate">{r.title} <span className="text-ink-faint">({r.chart_count})</span></span>
               <span className="flex items-center gap-1 opacity-60 group-hover:opacity-100 shrink-0">
-                <button onClick={(e) => rename(r, e)} className="text-ink-faint hover:text-ink transition">✏️</button>
+                <button onClick={(e) => rename(r, e)} className="text-ink-faint hover:text-ink transition"><Pencil size={12} /></button>
                 <button onClick={(e) => remove(r.id, e)} className="text-ink-faint hover:text-bad transition">&times;</button>
               </span>
             </div>
@@ -64,10 +65,10 @@ export default function ReportsView() {
         ) : (
           <div className="max-w-3xl">
             <div className="flex items-start justify-between gap-4 mb-5">
-              <h2 className="text-lg font-semibold text-ink">📄 {active.title}</h2>
+              <h2 className="text-lg font-semibold text-ink flex items-center gap-2"><FileText size={18} className="text-ink-faint" />{active.title}</h2>
               <div className="flex gap-2 shrink-0">
-                <a href={`/api/reports/${active.id}/export?format=html`} className="text-xs px-3 py-1.5 rounded-lg bg-edge hover:bg-edge-bright text-ink transition">⬇ HTML</a>
-                <a href={`/api/reports/${active.id}/export?format=md`} className="text-xs px-3 py-1.5 rounded-lg bg-edge hover:bg-edge-bright text-ink transition">⬇ Markdown</a>
+                <a href={`/api/reports/${active.id}/export?format=html`} className="text-xs px-3 py-1.5 rounded-lg bg-edge hover:bg-edge-bright text-ink transition flex items-center gap-1.5"><Download size={12} /> HTML</a>
+                <a href={`/api/reports/${active.id}/export?format=md`} className="text-xs px-3 py-1.5 rounded-lg bg-edge hover:bg-edge-bright text-ink transition flex items-center gap-1.5"><Download size={12} /> Markdown</a>
               </div>
             </div>
             <Blocks blocks={active.blocks} />

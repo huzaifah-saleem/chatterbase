@@ -2,6 +2,7 @@
 // flow: submit a request, approve/reject each sub-agent dispatch as the
 // orchestrator proposes it live, browse + replay past runs.
 import { useEffect, useState } from 'react'
+import { Pencil } from 'lucide-react'
 import { api } from '../../lib/api'
 import RunCard from '../../components/RunCard'
 import { Blocks } from '../../components/Blocks'
@@ -82,14 +83,14 @@ export default function TasksTab({ personaId }) {
             key={r.id}
             onClick={() => openReplay(r.id)}
             className={`group flex items-start justify-between gap-1 px-3 py-2 rounded-lg text-xs cursor-pointer transition
-              ${r.id === replay?.id ? 'bg-accent/15 text-accent-hot' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
+              ${r.id === replay?.id ? 'bg-accent/15 text-accent' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
           >
             <div className="min-w-0">
               <div className="line-clamp-2">{r.request}</div>
               <div className="text-[10px] text-ink-faint mt-0.5">{(r.status || '').replace('_', ' ')}</div>
             </div>
             <span className="flex items-center gap-1 shrink-0 opacity-60 group-hover:opacity-100">
-              <button onClick={(e) => renameRun(r, e)} className="text-ink-faint hover:text-ink transition">✏️</button>
+              <button onClick={(e) => renameRun(r, e)} className="text-ink-faint hover:text-ink transition"><Pencil size={12} /></button>
               <button onClick={(e) => removeRun(r.id, e)} className="text-ink-faint hover:text-bad transition">&times;</button>
             </span>
           </div>

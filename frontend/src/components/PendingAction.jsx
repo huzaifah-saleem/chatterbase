@@ -8,7 +8,7 @@ import { Blocks } from './Blocks'
 
 const badgeCls = (subagent) => (subagent || '').includes('dashboard')
   ? 'bg-good/15 text-good'
-  : 'bg-accent/15 text-accent-hot'
+  : 'bg-accent/15 text-accent'
 
 export function PendingAction({ tool, args, decision, blocks }) {
   const isCode = tool === 'run_python'
@@ -22,7 +22,7 @@ export function PendingAction({ tool, args, decision, blocks }) {
         {decision === 'reject' && <span className="text-ink-faint uppercase text-[10px]">rejected</span>}
       </div>
       {isCode && (
-        <pre className="mt-1.5 text-xs bg-[#0d1118] border border-edge rounded-lg p-3 overflow-x-auto font-mono text-ink-dim">{args?.code}</pre>
+        <pre className="mt-1.5 text-xs bg-[#f1f1f4] border border-edge rounded-lg p-3 overflow-x-auto font-mono text-ink-dim">{args?.code}</pre>
       )}
       {blocks?.length > 0 && <div className="mt-2 ml-1"><Blocks blocks={blocks} /></div>}
     </div>

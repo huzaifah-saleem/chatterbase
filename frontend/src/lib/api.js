@@ -62,6 +62,9 @@ export const api = {
   pinChart: (dashboardId, chart) => post(`/api/dashboards/${dashboardId}/charts`, chart),
   updateChartType: (dashboardId, chartId, type) => put(`/api/dashboards/${dashboardId}/charts/${chartId}`, { type }),
   unpinChart: (dashboardId, chartId) => del(`/api/dashboards/${dashboardId}/charts/${chartId}`),
+  updateDashboardLayout: (dashboardId, layout) => put(`/api/dashboards/${dashboardId}/layout`, { layout }),
+  addDashboardComment: (dashboardId, text, author) => post(`/api/dashboards/${dashboardId}/comments`, { text, author }),
+  deleteDashboardComment: (dashboardId, commentId) => del(`/api/dashboards/${dashboardId}/comments/${commentId}`),
 
   // Agent personas
   listPersonas: () => get('/api/agent/personas'),

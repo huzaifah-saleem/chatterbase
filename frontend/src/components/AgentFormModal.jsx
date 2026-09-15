@@ -1,26 +1,27 @@
 // Create or edit an agent persona - name, expertise prompt, and the
-// marketplace card cosmetics (emoji/color/tagline).
+// marketplace card cosmetics (an accent color; the avatar itself is
+// always the name's initial, not a picked icon - simpler and reads more
+// like an enterprise app's default avatar than a per-agent icon picker).
 import { useState } from 'react'
 import { api } from '../lib/api'
 import Modal, { Field, inputCls, btnPrimary, btnSecondary } from './Modal'
 
-const EMOJI_CHOICES = ['🤖', '📊', '🧮', '📡', '🛰️', '🧠', '🔍', '💾', '📈', '🏦', '📞', '🛒']
-const COLOR_CHOICES = ['#f27340', '#4C8BF5', '#3ecf8e', '#a970ff', '#f0546a', '#00BCD4', '#f5b940']
+const COLOR_CHOICES = ['#e8590c', '#2f6fed', '#1e8e3e', '#7c4dff', '#d92d20', '#0891b2', '#b45309']
 
 export default function AgentFormModal({ persona, onClose, onSaved }) {
   const isEdit = !!persona
   const [name, setName] = useState(persona?.name || '')
   const [tagline, setTagline] = useState(persona?.tagline || '')
   const [expertise, setExpertise] = useState(persona?.expertise_prompt || '')
-  const [emoji, setEmoji] = useState(persona?.emoji || EMOJI_CHOICES[0])
   const [color, setColor] = useState(persona?.color || COLOR_CHOICES[0])
   const [busy, setBusy] = useState(false)
+  const initial = (name || '?').trim().charAt(0).toUpperCase()
 
   const save = async () => {
     if (!name.trim() || !expertise.trim()) { alert('Name and expertise are required.'); return }
     setBusy(true)
     try {
-      const payload = { name: name.trim(), expertise_prompt: expertise.trim(), tagline: tagline.trim(), emoji, color }
+      const payload = { name: name.trim(), expertise_prompt: expertise.trim(), tagline: tagline.trim(), color }
       const saved = isEdit ? await api.updatePersona(persona.id, payload) : await api.createPersona(payload)
       onSaved(saved)
     } catch (e) { alert(e.message) } finally { setBusy(false) }
@@ -30,18 +31,13 @@ export default function AgentFormModal({ persona, onClose, onSaved }) {
     <Modal title={isEdit ? 'Edit Agent' : 'New Agent'} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${color}22`, border: `1px solid ${color}55` }}>
-            {emoji}
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-semibold shrink-0" style={{ background: `${color}18`, border: `1px solid ${color}40`, color }}>
+            {initial}
           </div>
           <div className="flex-1 flex flex-col gap-2">
-            <div className="flex gap-1.5 flex-wrap">
-              {EMOJI_CHOICES.map((e) => (
-                <button key={e} onClick={() => setEmoji(e)} className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm ${emoji === e ? 'bg-edge-bright ring-1 ring-accent' : 'hover:bg-panel'}`}>{e}</button>
-              ))}
-            </div>
             <div className="flex gap-1.5">
               {COLOR_CHOICES.map((c) => (
-                <button key={c} onClick={() => setColor(c)} className={`w-5 h-5 rounded-full ${color === c ? 'ring-2 ring-offset-2 ring-offset-card ring-white' : ''}`} style={{ background: c }} />
+                <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full ${color === c ? 'ring-2 ring-offset-2 ring-offset-card ring-accent' : ''}`} style={{ background: c }} />
               ))}
             </div>
           </div>

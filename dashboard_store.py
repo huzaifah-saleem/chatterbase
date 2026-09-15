@@ -169,3 +169,44 @@ def unpin_chart(dashboard_id, chart_id):
     dashboard["charts"] = remaining
     _save(dashboard)
     return True
+
+
+def update_layout(dashboard_id, layout):
+    """Persist the chart grid arrangement (react-grid-layout's own shape:
+    a list of {i: chart_id, x, y, w, h}) after a drag/resize in edit mode -
+    a chart pinned after the layout was last saved simply has no entry
+    yet, and react-grid-layout auto-places anything missing from `layout`
+    using its own compaction algorithm, so this never needs backfilling."""
+    dashboard = get_dashboard(dashboard_id)
+    if dashboard is None:
+        raise FileNotFoundError(f"Dashboard {dashboard_id} not found")
+    dashboard["layout"] = layout
+    _save(dashboard)
+    return dashboard
+
+
+def add_comment(dashboard_id, text, author=""):
+    dashboard = get_dashboard(dashboard_id)
+    if dashboard is None:
+        raise FileNotFoundError(f"Dashboard {dashboard_id} not found")
+    comment = {
+        "id": str(uuid.uuid4()),
+        "text": text,
+        "author": author.strip() or "Anonymous",
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+    }
+    dashboard.setdefault("comments", []).append(comment)
+    _save(dashboard)
+    return comment
+
+
+def delete_comment(dashboard_id, comment_id):
+    dashboard = get_dashboard(dashboard_id)
+    if dashboard is None:
+        raise FileNotFoundError(f"Dashboard {dashboard_id} not found")
+    remaining = [c for c in dashboard.get("comments", []) if c["id"] != comment_id]
+    if len(remaining) == len(dashboard.get("comments", [])):
+        return False
+    dashboard["comments"] = remaining
+    _save(dashboard)
+    return True

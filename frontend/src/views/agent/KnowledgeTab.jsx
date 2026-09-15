@@ -60,7 +60,7 @@ export default function KnowledgeTab({ persona, onUpdated }) {
         {skill && (
           <div className="card p-4">
             <div className="text-xs text-ink-dim mb-2">{skill.description}</div>
-            <pre className="text-xs bg-[#0d1118] border border-edge rounded-lg p-3 overflow-auto max-h-96 font-mono text-ink-dim whitespace-pre-wrap">{skill.body}</pre>
+            <pre className="text-xs bg-[#f1f1f4] border border-edge rounded-lg p-3 overflow-auto max-h-96 font-mono text-ink-dim whitespace-pre-wrap">{skill.body}</pre>
           </div>
         )}
       </div>

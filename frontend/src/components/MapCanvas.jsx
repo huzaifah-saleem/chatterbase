@@ -10,12 +10,10 @@ import 'leaflet/dist/leaflet.css'
 // Standard OSM raster tiles - free, no API key or account required (unlike
 // CARTO's basemap tiles, which now gate on a registered referer/key even
 // for local dev - verified live: curl got a real tile, a browser got an
-// "API KEY REQUIRED" watermark tile back instead). Dimmed via CSS filter on
-// the container (see .leaflet-tile-pane below) to sit better in this app's
-// dark UI without needing a themed tile provider.
+// "API KEY REQUIRED" watermark tile back instead).
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-const ACCENT = '#f27340'
+const ACCENT = '#e8590c'
 
 export default function MapCanvas({ points = [], height = 320 }) {
   const containerRef = useRef(null)
@@ -47,8 +45,13 @@ export default function MapCanvas({ points = [], height = 320 }) {
       map.fitBounds(L.latLngBounds(valid.map((p) => [p.lat, p.lng])).pad(0.25), { maxZoom: 12 })
     }
 
-    return () => map.remove()
+    // Leaflet doesn't auto-detect its container resizing (unlike Chart.js) -
+    // needed when this sits in the dashboard's resizable grid (DashboardsView.jsx).
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize())
+    resizeObserver.observe(containerRef.current)
+
+    return () => { resizeObserver.disconnect(); map.remove() }
   }, [JSON.stringify(points)])
 
-  return <div ref={containerRef} style={{ height, borderRadius: '10px', overflow: 'hidden' }} />
+  return <div ref={containerRef} style={{ height, width: '100%', borderRadius: '10px', overflow: 'hidden' }} />
 }
