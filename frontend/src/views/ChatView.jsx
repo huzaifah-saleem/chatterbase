@@ -42,6 +42,15 @@ export default function ChatView() {
     if (id === activeId) newChat()
     loadList()
   }
+  const renameConversation = async (c, e) => {
+    e.stopPropagation()
+    const title = prompt('Rename conversation:', c.title)
+    if (!title || title === c.title) return
+    try {
+      await api.renameConversation(c.id, title)
+      loadList()
+    } catch (err) { alert(err.message) }
+  }
 
   const send = async (text) => {
     const messageText = (text ?? input).trim()
@@ -98,7 +107,10 @@ export default function ChatView() {
                 ${c.id === activeId ? 'bg-accent/15 text-accent-hot' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
             >
               <span className="truncate">{c.title}</span>
-              <button onClick={(e) => deleteConversation(c.id, e)} className="opacity-0 group-hover:opacity-100 text-ink-faint hover:text-bad transition shrink-0">&times;</button>
+              <span className="flex items-center gap-1 opacity-60 group-hover:opacity-100 shrink-0">
+                <button onClick={(e) => renameConversation(c, e)} className="text-ink-faint hover:text-ink transition">✏️</button>
+                <button onClick={(e) => deleteConversation(c.id, e)} className="text-ink-faint hover:text-bad transition">&times;</button>
+              </span>
             </div>
           ))}
         </div>

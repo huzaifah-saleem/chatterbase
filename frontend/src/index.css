@@ -73,3 +73,9 @@ body { background: var(--color-base); color: var(--color-ink); font-family: var(
 
 @keyframes rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise-in .25s ease both; }
+
+/* Dim the light OSM tile set (MapCanvas.jsx/FlowMapCanvas.jsx) so it sits
+   better against this app's dark UI, without needing a themed tile
+   provider (CARTO's dark set now requires a registered API key). */
+.leaflet-tile-pane { filter: brightness(0.75) saturate(0.85); }
+.leaflet-container { background: var(--color-panel); }

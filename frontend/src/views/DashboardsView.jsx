@@ -27,6 +27,16 @@ export default function DashboardsView() {
     if (id === activeId) { setActiveId(null); setActive(null) }
     loadList()
   }
+  const rename = async (d, e) => {
+    e.stopPropagation()
+    const name = prompt('Rename dashboard:', d.name)
+    if (!name || name === d.name) return
+    try {
+      await api.renameDashboard(d.id, name)
+      loadList()
+      if (d.id === activeId) setActive(await api.getDashboard(activeId))
+    } catch (err) { alert(err.message) }
+  }
   const unpin = async (chartId) => {
     await api.unpinChart(activeId, chartId)
     setActive(await api.getDashboard(activeId))
@@ -50,7 +60,10 @@ export default function DashboardsView() {
                 ${d.id === activeId ? 'bg-accent/15 text-accent-hot' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
             >
               <span className="truncate">{d.name} <span className="text-ink-faint">({d.chart_count})</span></span>
-              <button onClick={(e) => remove(d.id, e)} className="opacity-0 group-hover:opacity-100 text-ink-faint hover:text-bad transition shrink-0">&times;</button>
+              <span className="flex items-center gap-1 opacity-60 group-hover:opacity-100 shrink-0">
+                <button onClick={(e) => rename(d, e)} className="text-ink-faint hover:text-ink transition">✏️</button>
+                <button onClick={(e) => remove(d.id, e)} className="text-ink-faint hover:text-bad transition">&times;</button>
+              </span>
             </div>
           ))}
           {dashboards.length === 0 && <div className="px-3 py-2 text-xs text-ink-faint">No dashboards yet</div>}

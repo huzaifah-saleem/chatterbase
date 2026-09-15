@@ -88,6 +88,51 @@ def touch(persona_id, chat_id):
     return chat
 
 
+def rename_chat(persona_id, chat_id, title):
+    path = _path_for(persona_id, chat_id)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Chat {chat_id} not found")
+    with open(path) as f:
+        chat = json.load(f)
+    chat["title"] = title
+    chat["updated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+    with open(path, "w") as f:
+        json.dump(chat, f, indent=2)
+    return chat
+
+
+def append_turn_blocks(persona_id, chat_id, blocks):
+    """Append one completed turn's non-text blocks (charts pinned during it)
+    to this chat's persisted per-turn log - called exactly when a turn
+    reaches "done" status, i.e. exactly when a new final AIMessage lands in
+    the LangGraph checkpointer (see agent_orchestrator.py's _run_state_
+    from_result/_stream_run). That means the Nth entry here always lines
+    up with the Nth non-empty AIMessage reconstructed from checkpointed
+    state (agent_orchestrator.get_chat_history) - always append, even an
+    empty list, or that positional alignment breaks for every turn after.
+
+    The checkpointer already persists message text durably across restarts
+    - this only needs to carry the chart blocks that text reconstruction
+    alone can't recover, not duplicate the text itself."""
+    path = _path_for(persona_id, chat_id)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Chat {chat_id} not found")
+    with open(path) as f:
+        chat = json.load(f)
+    chat.setdefault("blocks_by_turn", []).append(blocks)
+    with open(path, "w") as f:
+        json.dump(chat, f, indent=2)
+
+
+def get_turn_blocks(persona_id, chat_id):
+    """This chat's per-turn block log, oldest first - see append_turn_blocks."""
+    path = _path_for(persona_id, chat_id)
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        return json.load(f).get("blocks_by_turn", [])
+
+
 def delete_chat(persona_id, chat_id):
     path = _path_for(persona_id, chat_id)
     if not os.path.exists(path):

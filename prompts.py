@@ -386,10 +386,15 @@ database itself can't do. It requires human approval before it actually runs.
 Prefer a direct database query when one would do the job.
 
 DASHBOARDS AND CHARTS:
-- When the user asks for a chart, graph, or visualization, first get the real numbers via your database tools, then use list_dashboards/create_dashboard/pin_chart to place it. pin_chart finds a dashboard by name (case-insensitive) or creates it - you rarely need create_dashboard separately.
-- Pick chart_type: "pie" or "doughnut" for proportions, "line" for trends over time, "bar" for comparing quantities, "radar" for comparing several metrics at once - default to "bar".
+- When the user asks for a chart, graph, or visualization, first get the real numbers via your database tools, then use list_dashboards/create_dashboard/pin_chart/pin_map_chart/pin_flow_map to place it. Each pin tool finds a dashboard by name (case-insensitive) or creates it - you rarely need create_dashboard separately.
+- To change or replace an EXISTING chart (e.g. "go to the X dashboard and change the Y chart to a map"): call get_dashboard_charts first to see that chart's current title/type/raw data - one made before maps existed often has coordinates crammed into its labels as text (e.g. "-33.0,151.8"); parse the real lat/lng out of that if that's what's there. Then delete_chart the old one by its exact title, and pin the replacement. Never invent coordinates that aren't in the existing data or that you're not confident about.
+- Geographic data: if it's individual locations (stores, cities, events - anything with a lat/lng), use pin_map_chart. If it's movement or flow between an origin and destination (shipments, trips, routes, connections), use pin_flow_map. Only use real coordinates from your data or that you're confident about - never invent lat/lng.
+- Otherwise pick chart_type: "pie" or "doughnut" for proportions, "line" for trends over time, "bar" for comparing quantities, "radar" for comparing several metrics at once - default to "bar".
 - Use the EXACT labels from your query results - do not rename or prettify them.
 - Provide at least as many colors as labels: #4CAF50, #2196F3, #FF9800, #E91E63, #9C27B0, #00BCD4, #FFEB3B, #795548
+
+REPORTS:
+- If the user asks for a report, write-up, or document (not just a chat answer), pin any charts that belong in it first, then call create_report LAST with a title and a well-formatted markdown summary - it automatically bundles in every chart you've pinned during this conversation. Don't call create_report for an ordinary question that doesn't ask for a saved artifact.
 
 Answer directly and completely in one pass whenever you can - you don't need to narrate a plan first. Give a concise, plain-English reply - no raw JSON dumps, use exact table/column/label names from results. If the message is pure conversation with nothing to look up, just respond naturally.
 
@@ -403,15 +408,18 @@ def get_dashboard_agent_prompt():
     create_dashboard/pin_chart - unlike get_chart_spec_prompt(), which asks
     for raw JSON because the old orchestrator had no tool-calling loop for
     this step."""
-    return """You turn a description of already-known data into a chart and get it onto the right dashboard, using your list_dashboards, create_dashboard, and pin_chart tools.
+    return """You turn a description of already-known data into a chart and get it onto the right dashboard, using your list_dashboards, get_dashboard_charts, delete_chart, create_dashboard, pin_chart, pin_map_chart, and pin_flow_map tools. You can also save a report with create_report when asked for a summary, write-up, or report artifact.
 
 RULES:
-- If the task names a specific dashboard, use list_dashboards to check whether it already exists, then pin_chart with that exact dashboard_name - it will be created automatically if it doesn't exist yet, so you don't need to call create_dashboard yourself unless you want an empty dashboard with nothing pinned yet.
+- If asked for a report/summary: pin whatever charts belong in it first, THEN call create_report last with a well-formatted markdown summary - it automatically bundles in every chart you've pinned so far.
+- If the task names a specific dashboard, use list_dashboards to check whether it already exists, then pin with that exact dashboard_name - it will be created automatically if it doesn't exist yet, so you don't need to call create_dashboard yourself unless you want an empty dashboard with nothing pinned yet.
 - If no dashboard is named, use list_dashboards to see what exists and pick the most relevant one, or "Agent Dashboard" if none fit.
+- To change or replace an EXISTING chart (e.g. "change the X chart to a map"): call get_dashboard_charts first to see its current title/type/raw data - a chart made before maps existed often has coordinates crammed into its labels as text (e.g. "-33.0,151.8") - parse the real lat/lng out of that if that's what's there. Then delete_chart the old one by its exact title, and pin the replacement with pin_chart/pin_map_chart/pin_flow_map. Never invent coordinates that aren't in the existing data or that you're not confident about.
 - Use the EXACT labels/names given in the data - do not rename or prettify them.
-- Pick chart_type: "pie" or "doughnut" for proportions, "line" for trends over time, "bar" for comparing quantities across categories, "radar" for comparing several metrics at once - default to "bar" otherwise.
+- If the data has latitude/longitude for individual locations, use pin_map_chart instead of pin_chart. If it describes movement/flow between an origin and a destination (shipments, trips, routes, connections), use pin_flow_map instead. Only use real coordinates you were given or that you're confident about - never invent lat/lng.
+- Otherwise pick chart_type: "pie" or "doughnut" for proportions, "line" for trends over time, "bar" for comparing quantities across categories, "radar" for comparing several metrics at once - default to "bar" otherwise.
 - Provide at least as many colors as labels (repeat a palette if needed): #4CAF50, #2196F3, #FF9800, #E91E63, #9C27B0, #00BCD4, #FFEB3B, #795548
-- If the given data has no numeric values to chart, do not call pin_chart - just explain why in your final report.
+- If the given data has nothing chartable, do not pin anything - just explain why in your final report.
 
 After pinning, give a one-sentence final report confirming what was pinned and to which dashboard."""
 

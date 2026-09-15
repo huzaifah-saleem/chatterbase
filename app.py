@@ -2,12 +2,14 @@
 Chatterbase - Chat with Your Data
 A Flask-based web interface for interacting with Teradata via MCP using LLMs
 """
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from werkzeug.utils import safe_join
 from flask_cors import CORS
 import base64
 import datetime
+import json
 import os
+import re
 
 from config import Config
 from mcp_client import run_async, get_mcp_tools, get_server_statuses
@@ -24,6 +26,9 @@ import agent_chat_store
 import agent_orchestrator
 import knowledge_sync
 import observability
+import report_store
+import report_export
+import agent_export
 
 # Initialize Flask app. Static assets now come from the built React SPA
 # (frontend/dist, see frontend/vite.config.js + Dockerfile's node build
@@ -284,6 +289,19 @@ def update_conversation(conversation_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/conversations/<conversation_id>/rename", methods=["PUT"])
+def rename_conversation(conversation_id):
+    try:
+        title = (request.json.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+        return jsonify(conversation_store.rename_conversation(conversation_id, title))
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/conversations/<conversation_id>", methods=["DELETE"])
 def delete_conversation(conversation_id):
     """Delete a conversation"""
@@ -329,6 +347,19 @@ def get_dashboard(dashboard_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/dashboards/<dashboard_id>/rename", methods=["PUT"])
+def rename_dashboard(dashboard_id):
+    try:
+        name = (request.json.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "name is required"}), 400
+        return jsonify(dashboard_store.rename_dashboard(dashboard_id, name))
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/dashboards/<dashboard_id>", methods=["DELETE"])
 def delete_dashboard(dashboard_id):
     """Delete a dashboard and everything pinned to it"""
@@ -350,9 +381,11 @@ def pin_dashboard_chart(dashboard_id):
             dashboard_id,
             title=data.get("title", "Chart"),
             chart_type=data.get("type", "bar"),
-            labels=data.get("labels", []),
-            data=data.get("data", []),
+            labels=data.get("labels"),
+            data=data.get("data"),
             colors=data.get("colors"),
+            points=data.get("points"),
+            flows=data.get("flows"),
         )
         return jsonify(entry)
     except FileNotFoundError as e:
@@ -386,6 +419,71 @@ def unpin_dashboard_chart(dashboard_id, chart_id):
         return jsonify({"status": "ok"})
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/reports", methods=["GET"])
+def list_reports():
+    """List saved reports (summary only), newest first. ?persona_id= filters
+    to reports authored by one persona."""
+    try:
+        return jsonify({"reports": report_store.list_reports(request.args.get("persona_id"))})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/reports/<report_id>", methods=["GET"])
+def get_report(report_id):
+    try:
+        report = report_store.get_report(report_id)
+        if report is None:
+            return jsonify({"error": "Report not found"}), 404
+        return jsonify(report)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/reports/<report_id>/rename", methods=["PUT"])
+def rename_report(report_id):
+    try:
+        title = (request.json.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+        return jsonify(report_store.rename_report(report_id, title))
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/reports/<report_id>", methods=["DELETE"])
+def delete_report(report_id):
+    try:
+        existed = report_store.delete_report(report_id)
+        if not existed:
+            return jsonify({"error": "Report not found"}), 404
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/reports/<report_id>/export", methods=["GET"])
+def export_report(report_id):
+    """Download the report as a standalone file - ?format=html (default,
+    genuinely interactive - Chart.js/Leaflet load from CDN) or ?format=md
+    (plain data, charts become a small table instead of an image)."""
+    try:
+        report = report_store.get_report(report_id)
+        if report is None:
+            return jsonify({"error": "Report not found"}), 404
+        fmt = request.args.get("format", "html")
+        safe_name = re.sub(r'[^A-Za-z0-9_-]+', '-', report.get("title", "report")).strip('-') or "report"
+        if fmt == "md":
+            body, mimetype, filename = report_export.to_markdown(report), "text/markdown", f"{safe_name}.md"
+        else:
+            body, mimetype, filename = report_export.to_html(report), "text/html", f"{safe_name}.html"
+        return Response(body, mimetype=mimetype, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -461,6 +559,39 @@ def delete_agent_persona(persona_id):
             return jsonify({"error": "Persona not found"}), 404
         agent_skill_store.delete_all_for_persona(persona_id)
         return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agent/personas/<persona_id>/export", methods=["GET"])
+def export_agent_persona(persona_id):
+    """Download this agent as a portable JSON file - name/tagline/emoji/
+    color/database hint plus its user-authored skills (not the
+    auto-generated database-knowledge skill, and not its chat/run history -
+    see agent_export.py for why). Importable into any Chatterbase instance."""
+    try:
+        payload = agent_export.export_persona(persona_id)
+        safe_name = re.sub(r'[^A-Za-z0-9_-]+', '-', payload["persona"]["name"]).strip('-') or "agent"
+        return Response(
+            json.dumps(payload, indent=2),
+            mimetype="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.chatterbase-agent.json"'},
+        )
+    except KeyError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agent/personas/import", methods=["POST"])
+def import_agent_persona():
+    """Create a new agent from a previously exported JSON file - always a
+    fresh persona (new id), never overwrites an existing one."""
+    try:
+        persona = agent_export.import_persona(request.json)
+        return jsonify(persona)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -689,6 +820,19 @@ def resume_agent_chat_stream(persona_id, chat_id):
     return _agent_chat_sse(work)
 
 
+@app.route("/api/agent/personas/<persona_id>/chats/<chat_id>/rename", methods=["PUT"])
+def rename_agent_chat(persona_id, chat_id):
+    try:
+        title = (request.json.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+        return jsonify(agent_chat_store.rename_chat(persona_id, chat_id, title))
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/agent/personas/<persona_id>/chats/<chat_id>", methods=["DELETE"])
 def delete_agent_chat(persona_id, chat_id):
     try:
@@ -814,6 +958,19 @@ def get_agent_run(thread_id):
         if state is None:
             return jsonify({"error": "Run has no checkpointed state"}), 404
         return jsonify({**run, **state})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agent/run/<thread_id>/rename", methods=["PUT"])
+def rename_agent_run(thread_id):
+    try:
+        title = (request.json.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+        return jsonify(agent_run_store.rename_run(thread_id, title))
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

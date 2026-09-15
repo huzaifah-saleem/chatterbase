@@ -69,7 +69,7 @@ def list_runs(persona_id=None):
                 continue
             summaries.append({
                 "id": data["id"],
-                "request": data.get("request", ""),
+                "request": data.get("title") or data.get("request", ""),
                 "status": data.get("status", ""),
                 "updated_at": data.get("updated_at", ""),
             })
@@ -77,6 +77,44 @@ def list_runs(persona_id=None):
             continue
     summaries.sort(key=lambda r: r["updated_at"], reverse=True)
     return summaries
+
+
+def rename_run(run_id, title):
+    """Set a display title overriding the original request text everywhere
+    it's shown (list_runs' summary and the full record alike) - the
+    original request stays in "request" untouched, since it's a record of
+    what was actually asked, not just a label."""
+    run = get_run(run_id)
+    if run is None:
+        raise FileNotFoundError(f"Run {run_id} not found")
+    run["title"] = title
+    run["updated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+    with open(_path_for(run_id), "w") as f:
+        json.dump(run, f, indent=2)
+    return run
+
+
+def append_run_blocks(run_id, blocks):
+    """Append one dispatch/resume step's blocks to the run's persisted
+    history, called every time that step actually executes (whether it
+    ends "interrupted" or "done") - so replaying a run later
+    (agent_orchestrator.get_run_state) shows every step's charts and text
+    in order, the same as the live Tasks UI already accumulates them
+    client-side, not just whatever the final step happened to produce."""
+    run = get_run(run_id)
+    if run is None:
+        raise FileNotFoundError(f"Run {run_id} not found")
+    run.setdefault("blocks_history", []).append(blocks)
+    run["updated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+    with open(_path_for(run_id), "w") as f:
+        json.dump(run, f, indent=2)
+    return run
+
+
+def get_run_blocks(run_id):
+    """This run's per-step block history, oldest first - see append_run_blocks."""
+    run = get_run(run_id)
+    return (run or {}).get("blocks_history", [])
 
 
 def delete_run(run_id):

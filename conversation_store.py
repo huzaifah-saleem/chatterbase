@@ -89,6 +89,17 @@ def update_messages(conversation_id, messages):
     return conversation
 
 
+def rename_conversation(conversation_id, title):
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise FileNotFoundError(f"Conversation {conversation_id} not found")
+    conversation["title"] = title
+    conversation["updated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+    with open(_path_for(conversation_id), "w") as f:
+        json.dump(conversation, f, indent=2)
+    return conversation
+
+
 def delete_conversation(conversation_id):
     """Delete a conversation file. Returns True if it existed."""
     path = _path_for(conversation_id)

@@ -9,6 +9,7 @@ import SettingsModal from './SettingsModal'
 const NAV = [
   { to: '/', label: 'Chats', icon: '💬', end: true },
   { to: '/dashboards', label: 'Dashboards', icon: '📊' },
+  { to: '/reports', label: 'Reports', icon: '📄' },
   { to: '/agents', label: 'Agents', icon: '🤖' },
   { to: '/activity', label: 'Activity', icon: '📡' },
 ]

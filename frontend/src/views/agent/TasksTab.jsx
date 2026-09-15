@@ -48,7 +48,7 @@ export default function TasksTab({ personaId }) {
     setReplay({ id: runId, loading: true })
     try {
       const run = await api.getRun(runId)
-      setReplay({ id: runId, request: run.request, status: run.status, blocks: run.blocks })
+      setReplay({ id: runId, request: run.title || run.request, status: run.status, blocks: run.blocks })
     } catch (e) { setReplay(null); alert(e.message) }
   }
 
@@ -60,6 +60,17 @@ export default function TasksTab({ personaId }) {
       if (replay?.id === runId) setReplay(null)
       loadHistory()
     } catch (e) { alert(e.message) }
+  }
+
+  const renameRun = async (r, e) => {
+    e.stopPropagation()
+    const title = prompt('Rename run:', r.request)
+    if (!title || title === r.request) return
+    try {
+      await api.renameRun(r.id, title)
+      loadHistory()
+      if (replay?.id === r.id) setReplay((prev) => ({ ...prev, request: title }))
+    } catch (err) { alert(err.message) }
   }
 
   return (
@@ -77,7 +88,10 @@ export default function TasksTab({ personaId }) {
               <div className="line-clamp-2">{r.request}</div>
               <div className="text-[10px] text-ink-faint mt-0.5">{(r.status || '').replace('_', ' ')}</div>
             </div>
-            <button onClick={(e) => removeRun(r.id, e)} className="text-ink-faint hover:text-bad transition shrink-0 opacity-60 group-hover:opacity-100">&times;</button>
+            <span className="flex items-center gap-1 shrink-0 opacity-60 group-hover:opacity-100">
+              <button onClick={(e) => renameRun(r, e)} className="text-ink-faint hover:text-ink transition">✏️</button>
+              <button onClick={(e) => removeRun(r.id, e)} className="text-ink-faint hover:text-bad transition">&times;</button>
+            </span>
           </div>
         ))}
         {history.length === 0 && <div className="px-3 py-2 text-xs text-ink-faint">No runs yet</div>}

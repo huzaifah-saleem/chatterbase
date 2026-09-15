@@ -35,6 +35,7 @@ import subprocess
 import sys
 from typing import Optional
 
+from pydantic import BaseModel
 from langchain_core.tools import tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain.agents.middleware import SummarizationMiddleware
@@ -46,7 +47,10 @@ from deepagents.backends import FilesystemBackend
 from config import Config
 import mcp_registry
 import dashboard_store
+import report_store
 import agent_persona_store
+import agent_chat_store
+import agent_run_store
 import observability
 from agent_model_bridge import get_chat_model
 from prompts import get_data_agent_prompt, get_dashboard_agent_prompt, get_chat_agent_prompt, filter_relevant_tools
@@ -54,7 +58,7 @@ from prompts import get_data_agent_prompt, get_dashboard_agent_prompt, get_chat_
 ORCHESTRATOR_SYSTEM_PROMPT = """You are the orchestrator for a multi-agent data platform. You have two sub-agent types available via the task tool:
 
 - "data-agent": queries the connected database via tools, and can also run Python code for calculations or data transformations the database can't do directly. Use for anything that needs to look up, count, filter, verify, or compute data - also for plain conversation, which it handles gracefully. You yourself have no database or code-execution tools - always dispatch to data-agent for these, never answer from memory or claim you lack the capability.
-- "dashboard-agent": turns already-known numbers into a chart and pins it to a dashboard. Use ONLY after a data-agent step has produced the numbers to chart, unless the user gave you the numbers directly.
+- "dashboard-agent": turns already-known numbers into a chart and pins it to a dashboard, can inspect an existing dashboard's charts and replace one (e.g. "change the X chart on dashboard Y to a map"), and can save a report (a written narrative plus pinned charts) when asked for a summary/report artifact. Use ONLY after a data-agent step has produced the numbers to chart or summarize - unless the user gave you the numbers directly, or the task is purely about modifying/inspecting an existing dashboard, which dashboard-agent can do on its own.
 
 RULES:
 - Dispatch ONE sub-agent at a time and wait for its result before deciding the next step - never dispatch several in parallel.
@@ -159,12 +163,72 @@ def _relevant_mcp_tools(mcp_tools, user_message, max_tools=12, max_chars=6000):
     return [t for t in mcp_tools if t.name in selected_names]
 
 
+class MapPoint(BaseModel):
+    """One geo point for pin_map_chart - real coordinates only, never
+    invented ones (same "never fabricate data" rule as query results)."""
+    lat: float
+    lng: float
+    label: Optional[str] = None
+    value: Optional[float] = None
+
+
+class FlowLeg(BaseModel):
+    """One origin-destination leg for pin_flow_map - real coordinates only."""
+    origin_lat: float
+    origin_lng: float
+    dest_lat: float
+    dest_lng: float
+    origin_label: Optional[str] = None
+    dest_label: Optional[str] = None
+    value: Optional[float] = None
+
+
 def _make_dashboard_tools(captured_blocks):
     """Tools giving the dashboard-agent real autonomy over dashboards, not
     just chart-pinning into whichever one happened to exist first (Phase
     2-4's behavior) - it can list what exists and create/target one by name,
     so "create a dashboard called Ops KPIs and add a chart of X" works
-    end-to-end without a human creating the dashboard by hand first."""
+    end-to-end without a human creating the dashboard by hand first.
+
+    pin_map_chart/pin_flow_map are separate tools from pin_chart, not extra
+    optional params on it - a small local model picks the right tool far
+    more reliably from three narrowly-typed tools than from one tool with a
+    pile of type-dependent optional fields (same reasoning as this app's
+    per-persona MCP tools already being narrowly scoped)."""
+
+    def _find_dashboard(dashboard_name):
+        dashboards = dashboard_store.list_dashboards()
+        match = next((d for d in dashboards if d["name"].lower() == dashboard_name.lower()), None)
+        return match["id"] if match else None
+
+    def _find_or_create_dashboard(dashboard_name):
+        return _find_dashboard(dashboard_name) or dashboard_store.create_dashboard(dashboard_name)["id"]
+
+    def _describe_point(p):
+        label = p.get("label") or "point"
+        coords = f'{p.get("lat")}, {p.get("lng")}'
+        value = p.get("value")
+        return f'{label} ({coords})' + (f' = {value}' if value is not None else '')
+
+    def _describe_flow(f):
+        origin = f.get("origin_label") or "origin"
+        dest = f.get("dest_label") or "dest"
+        value = f.get("value")
+        return f'{origin} -> {dest}' + (f' = {value}' if value is not None else '')
+
+    def _describe_chart(c):
+        ctype = c.get("type")
+        title = c.get("title", "Untitled")
+        if ctype == "map":
+            rows = "; ".join(_describe_point(p) for p in c.get("points") or [])
+            return f'- "{title}" (map): {rows or "(no points)"}'
+        if ctype == "od_map":
+            rows = "; ".join(_describe_flow(f) for f in c.get("flows") or [])
+            return f'- "{title}" (od_map): {rows or "(no flows)"}'
+        labels = c.get("labels") or []
+        data = c.get("data") or []
+        rows = "; ".join(f'{label}={value}' for label, value in zip(labels, data))
+        return f'- "{title}" ({ctype}): {rows or "(no data)"}'
 
     @tool
     def list_dashboards() -> str:
@@ -173,6 +237,42 @@ def _make_dashboard_tools(captured_blocks):
         if not dashboards:
             return "No dashboards exist yet."
         return "\n".join(f'- "{d["name"]}" ({d["chart_count"]} charts)' for d in dashboards)
+
+    @tool
+    def get_dashboard_charts(dashboard_name: str) -> str:
+        """Look up a dashboard by name (case-insensitive) and list every
+        chart pinned to it, with its title, type, and raw data (labels/
+        values, or points/flows for maps). Use this before modifying or
+        replacing an existing chart - e.g. "change the X chart to a map"
+        means: call this to see X's current data, work out real
+        coordinates from it (a table/bar chart with lat/lng crammed into
+        its labels is common before a map existed), then delete_chart the
+        old one and pin_map_chart/pin_flow_map the replacement."""
+        dashboard_id = _find_dashboard(dashboard_name)
+        if dashboard_id is None:
+            return f'No dashboard named "{dashboard_name}" exists.'
+        dashboard = dashboard_store.get_dashboard(dashboard_id)
+        charts = dashboard.get("charts") or []
+        if not charts:
+            return f'Dashboard "{dashboard_name}" has no charts pinned yet.'
+        return "\n".join(_describe_chart(c) for c in charts)
+
+    @tool
+    def delete_chart(dashboard_name: str, chart_title: str) -> str:
+        """Remove a chart from a dashboard by its exact title (case-
+        insensitive). Use this to replace an existing chart - delete the
+        old one, then pin the replacement with pin_chart/pin_map_chart/
+        pin_flow_map. If multiple charts share the same title, only the
+        first match is removed."""
+        dashboard_id = _find_dashboard(dashboard_name)
+        if dashboard_id is None:
+            return f'No dashboard named "{dashboard_name}" exists.'
+        dashboard = dashboard_store.get_dashboard(dashboard_id)
+        match = next((c for c in dashboard.get("charts") or [] if c.get("title", "").lower() == chart_title.lower()), None)
+        if match is None:
+            return f'No chart titled "{chart_title}" found on dashboard "{dashboard_name}".'
+        dashboard_store.unpin_chart(dashboard_id, match["id"])
+        return f'Removed "{chart_title}" from dashboard "{dashboard_name}".'
 
     @tool
     def create_dashboard(name: str) -> str:
@@ -185,18 +285,74 @@ def _make_dashboard_tools(captured_blocks):
         """Pin a chart to a dashboard, found by name (case-insensitive) or
         created if no dashboard with that name exists yet. chart_type is one
         of pie/bar/line/doughnut/radar. labels and data must be the same
-        length. colors is optional (a palette is used if omitted)."""
-        dashboards = dashboard_store.list_dashboards()
-        match = next((d for d in dashboards if d["name"].lower() == dashboard_name.lower()), None)
-        dashboard_id = match["id"] if match else dashboard_store.create_dashboard(dashboard_name)["id"]
-        dashboard_store.pin_chart(dashboard_id, title, chart_type, labels, data, colors)
+        length. colors is optional (a palette is used if omitted). For
+        geographic data use pin_map_chart or pin_flow_map instead - not this
+        tool."""
+        dashboard_id = _find_or_create_dashboard(dashboard_name)
+        dashboard_store.pin_chart(dashboard_id, title, chart_type, labels=labels, data=data, colors=colors)
         captured_blocks.append({
             "type": "chart",
             "chart": {"type": chart_type, "title": title, "labels": labels, "data": data, "colors": colors},
         })
         return f'Pinned "{title}" to dashboard "{dashboard_name}".'
 
-    return [list_dashboards, create_dashboard, pin_chart]
+    @tool
+    def pin_map_chart(dashboard_name: str, title: str, points: list[MapPoint]) -> str:
+        """Pin a geographic point map to a dashboard, found by name
+        (case-insensitive) or created if it doesn't exist. Use for plotting
+        locations - stores, cities, events, sensors, anything with a
+        latitude/longitude. Each point needs real lat/lng in decimal degrees
+        (never invent coordinates); label and value are optional - value
+        scales the marker size (e.g. a count or magnitude)."""
+        dashboard_id = _find_or_create_dashboard(dashboard_name)
+        points_data = [p.model_dump() for p in points]
+        dashboard_store.pin_chart(dashboard_id, title, "map", points=points_data)
+        captured_blocks.append({"type": "chart", "chart": {"type": "map", "title": title, "points": points_data}})
+        return f'Pinned map "{title}" to dashboard "{dashboard_name}" with {len(points_data)} point(s).'
+
+    @tool
+    def pin_flow_map(dashboard_name: str, title: str, flows: list[FlowLeg]) -> str:
+        """Pin an origin-destination flow map to a dashboard, found by name
+        (case-insensitive) or created if it doesn't exist. Use for movement
+        or flow between locations - shipments, migration, trips, routes,
+        network connections. Each flow needs real origin/destination
+        lat/lng in decimal degrees (never invent coordinates); labels and
+        value are optional - value scales the line thickness (e.g. a volume
+        or count)."""
+        dashboard_id = _find_or_create_dashboard(dashboard_name)
+        flows_data = [f.model_dump() for f in flows]
+        dashboard_store.pin_chart(dashboard_id, title, "od_map", flows=flows_data)
+        captured_blocks.append({"type": "chart", "chart": {"type": "od_map", "title": title, "flows": flows_data}})
+        return f'Pinned flow map "{title}" to dashboard "{dashboard_name}" with {len(flows_data)} flow(s).'
+
+    return [list_dashboards, get_dashboard_charts, delete_chart, create_dashboard, pin_chart, pin_map_chart, pin_flow_map]
+
+
+def _make_report_tools(captured_blocks, persona_id):
+    """One tool, create_report: saves a narrative plus every chart pinned
+    so far THIS turn (captured_blocks is the same list instance the
+    dashboard tools above append to, shared across the whole run - a chart
+    pinned earlier in the same turn is already in it by the time this
+    runs) as a standalone report_store.py record. Deliberately auto-
+    captures rather than asking the model to re-describe each chart's data
+    a second time - far less for a small local model to get right, and it
+    reuses exactly what was already pinned."""
+
+    @tool
+    def create_report(title: str, summary: str) -> str:
+        """Save a report combining a written summary with every chart you've
+        pinned so far in this conversation (via pin_chart/pin_map_chart/
+        pin_flow_map) - call this LAST, after gathering data and pinning any
+        charts you want included, not before. summary should be well-formed
+        markdown (headings, lists, etc. as appropriate) - the report's actual
+        narrative (findings, analysis, recommendations), not a one-line
+        confirmation. Reports appear in the Reports view and can be exported
+        as a standalone Markdown or HTML file."""
+        blocks = [{"type": "text", "content": summary}] + list(captured_blocks)
+        report_store.create_report(title, blocks, persona_id=persona_id)
+        return f'Saved report "{title}" with {len(captured_blocks)} chart(s).'
+
+    return [create_report]
 
 
 @tool
@@ -292,7 +448,7 @@ async def _build_agent(captured_blocks, checkpointer, persona_id=None, mode="tas
         return create_deep_agent(
             model=model,
             system_prompt=_chat_agent_prompt_for(persona_id),
-            tools=[*mcp_tools, run_python, *_make_dashboard_tools(captured_blocks)],
+            tools=[*mcp_tools, run_python, *_make_dashboard_tools(captured_blocks), *_make_report_tools(captured_blocks, persona_id)],
             interrupt_on={"run_python": True},
             checkpointer=checkpointer,
             backend=backend,
@@ -331,7 +487,7 @@ async def _build_agent(captured_blocks, checkpointer, persona_id=None, mode="tas
         system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
         subagents=[
             data_agent_spec,
-            {"name": "dashboard-agent", "description": "Manages dashboards autonomously: lists existing ones, creates new ones by name, and pins charts to them. Use only after a data-agent step has produced numbers to chart.", "tools": _make_dashboard_tools(captured_blocks), "system_prompt": get_dashboard_agent_prompt()},
+            {"name": "dashboard-agent", "description": "Manages dashboards autonomously: lists existing ones, creates new ones by name, pins charts to them, and can inspect/replace an existing chart (e.g. converting one to a map). Also saves reports (narrative + pinned charts) when asked for a summary/report artifact. Use only after a data-agent step has produced numbers to chart or summarize, or when the task is purely about an existing dashboard's charts.", "tools": [*_make_dashboard_tools(captured_blocks), *_make_report_tools(captured_blocks, persona_id)], "system_prompt": get_dashboard_agent_prompt()},
         ],
         interrupt_on={"task": True} if mode == "task" else None,
         checkpointer=checkpointer,
@@ -398,6 +554,7 @@ async def _start_run_async(thread_id, user_request, persona_id):
         agent = await _build_agent(captured_blocks, checkpointer, persona_id, user_message=user_request)
         result = await agent.ainvoke({"messages": [{"role": "user", "content": user_request}]}, config=_config_for(thread_id, persona_id))
         state = _run_state_from_result(result, captured_blocks)
+        agent_run_store.append_run_blocks(thread_id, state["blocks"])
         observability.log_event(thread_id, persona_id, state["status"], status="ok")
         return state
 
@@ -420,6 +577,7 @@ async def _resume_run_async(thread_id, decision, persona_id):
         observability.log_event(thread_id, persona_id, "resume", label=decision)
         result = await agent.ainvoke(Command(resume={"decisions": decisions}), config=config)
         state = _run_state_from_result(result, captured_blocks)
+        agent_run_store.append_run_blocks(thread_id, state["blocks"])
         observability.log_event(thread_id, persona_id, state["status"], status="ok")
         return state
 
@@ -432,15 +590,18 @@ async def _get_run_state_async(thread_id, persona_id):
         snapshot = await agent.aget_state(config)
         if not snapshot.values:
             return None
+        # Every step's blocks (across every dispatch/resume so far), flattened
+        # in order - not just the final one, which used to drop every chart
+        # (and every intermediate step's text) a multi-step task run produced
+        # along the way. See agent_run_store.append_run_blocks.
+        history_blocks = [b for step in agent_run_store.get_run_blocks(thread_id) for b in step]
         if snapshot.interrupts:
             return {
                 "status": "interrupted",
                 "pending_actions": _pending_actions_from_interrupt(snapshot.interrupts[0].value),
-                "blocks": [],
+                "blocks": history_blocks,
             }
-        text = _final_text(snapshot.values.get("messages", []))
-        blocks = [{"type": "text", "content": text}] if text else []
-        return {"status": "done", "pending_actions": [], "blocks": blocks}
+        return {"status": "done", "pending_actions": [], "blocks": history_blocks}
 
 
 def start_run(thread_id, user_request, persona_id=None):
@@ -474,6 +635,17 @@ def get_run_state(thread_id, persona_id=None):
 # like a task dispatch does - chat_message()/resume_chat() return the same
 # {status, pending_actions, blocks} shape start_run()/resume_run() do.
 
+def _persist_turn_blocks(persona_id, thread_id, status, captured_blocks):
+    """Persist this turn's chart blocks (agent_chat_store.append_turn_blocks)
+    for later history reconstruction (get_chat_history) - but only once the
+    turn actually reaches "done": an "interrupted" turn hasn't produced its
+    final AIMessage yet, so there's no new turn slot in the checkpointer for
+    these blocks to align with (see get_chat_history's right-aligned
+    matching, which is what makes this safe to skip on interrupt)."""
+    if status == "done":
+        agent_chat_store.append_turn_blocks(persona_id, thread_id, captured_blocks)
+
+
 async def _chat_message_async(thread_id, user_message, persona_id):
     captured_blocks = []
     observability.log_event(thread_id, persona_id, "chat_message", label=user_message)
@@ -481,6 +653,7 @@ async def _chat_message_async(thread_id, user_message, persona_id):
         agent = await _build_agent(captured_blocks, checkpointer, persona_id, mode="chat", user_message=user_message)
         result = await agent.ainvoke({"messages": [{"role": "user", "content": user_message}]}, config=_config_for(thread_id, persona_id))
         state = _run_state_from_result(result, captured_blocks)
+        _persist_turn_blocks(persona_id, thread_id, state["status"], captured_blocks)
         observability.log_event(thread_id, persona_id, state["status"], status="ok")
         return state
 
@@ -507,6 +680,7 @@ async def _resume_chat_async(thread_id, decision, persona_id):
         observability.log_event(thread_id, persona_id, "resume", label=decision)
         result = await agent.ainvoke(Command(resume={"decisions": decisions}), config=config)
         state = _run_state_from_result(result, captured_blocks)
+        _persist_turn_blocks(persona_id, thread_id, state["status"], captured_blocks)
         observability.log_event(thread_id, persona_id, state["status"], status="ok")
         return state
 
@@ -576,6 +750,7 @@ async def _chat_message_stream_async(thread_id, user_message, persona_id):
         config = _config_for(thread_id, persona_id)
         async for event in _stream_run(agent, {"messages": [{"role": "user", "content": user_message}]}, config, captured_blocks):
             if event["type"] == "result":
+                _persist_turn_blocks(persona_id, thread_id, event["data"]["status"], captured_blocks)
                 observability.log_event(thread_id, persona_id, event["data"]["status"], status="ok")
             yield event
 
@@ -593,6 +768,7 @@ async def _resume_chat_stream_async(thread_id, decision, persona_id):
         observability.log_event(thread_id, persona_id, "resume", label=decision)
         async for event in _stream_run(agent, Command(resume={"decisions": decisions}), config, captured_blocks):
             if event["type"] == "result":
+                _persist_turn_blocks(persona_id, thread_id, event["data"]["status"], captured_blocks)
                 observability.log_event(thread_id, persona_id, event["data"]["status"], status="ok")
             yield event
 
@@ -630,15 +806,34 @@ async def _get_chat_history_async(thread_id, persona_id):
             if not text:
                 continue
             turns.append({"role": "user" if cls == "HumanMessage" else "assistant", "content": text})
+
+        # Re-attach each assistant turn's persisted chart blocks (see
+        # agent_chat_store.append_turn_blocks) - right-aligned against the
+        # END of the assistant turns, not indexed from the start: a chat
+        # that already had turns before this feature shipped has fewer
+        # persisted block-entries than assistant turns (older turns were
+        # never logged), and since new entries are only ever appended, the
+        # stored list always corresponds to the MOST RECENT N turns.
+        assistant_turns = [t for t in turns if t["role"] == "assistant"]
+        turn_blocks = agent_chat_store.get_turn_blocks(persona_id, thread_id) if persona_id else []
+        offset = len(assistant_turns) - len(turn_blocks)
+        for i, t in enumerate(assistant_turns):
+            if i < offset:
+                continue
+            blocks = turn_blocks[i - offset]
+            if blocks:
+                t["blocks"] = [*blocks, {"type": "text", "content": t["content"]}]
+
         if snapshot.interrupts:
             return {"messages": turns, "status": "interrupted", "pending_actions": _pending_actions_from_interrupt(snapshot.interrupts[0].value)}
         return {"messages": turns, "status": "done", "pending_actions": []}
 
 
 def get_chat_history(thread_id, persona_id=None):
-    """Reconstruct a chat thread's turns (role + text only) from checkpointed
-    state, for reloading a conversation - plus whether it's currently paused
-    on a pending tool approval. Charts pinned mid-conversation don't
-    reappear inline on reload (same simplification as task-run replay) - they
-    stay visible on the Dashboards view, which is their source of truth."""
+    """Reconstruct a chat thread's turns from checkpointed state, for
+    reloading a conversation - plus whether it's currently paused on a
+    pending tool approval. Assistant turns that pinned charts get their
+    "blocks" re-attached (see agent_chat_store.append_turn_blocks), same
+    shape a live turn's reply already has - so a reload renders identically
+    to how the turn originally looked, charts included."""
     return _run_async(_get_chat_history_async(thread_id, persona_id))

@@ -29,7 +29,8 @@ export default function PinChartPopover({ chart, onClose }) {
       }
       await api.pinChart(dashboardId, {
         title: chart.title || 'Chart', type: chart.type || 'bar',
-        labels: chart.labels || [], data: chart.data || [], colors: chart.colors || null,
+        labels: chart.labels, data: chart.data, colors: chart.colors,
+        points: chart.points, flows: chart.flows,
       })
       setPinned(true)
       setTimeout(onClose, 900)

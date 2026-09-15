@@ -3,6 +3,7 @@
 // it emits blocks in this shape - the payoff of building this generically
 // back in Phase 1.
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import ChartCard from './ChartCard'
 
 export function Blocks({ blocks, onPinChart }) {
@@ -10,7 +11,7 @@ export function Blocks({ blocks, onPinChart }) {
   return (
     <div className="flex flex-col gap-3">
       {blocks.map((b, i) => {
-        if (b.type === 'text') return <div key={i} className="md text-sm text-ink"><ReactMarkdown>{b.content || ''}</ReactMarkdown></div>
+        if (b.type === 'text') return <div key={i} className="md text-sm text-ink"><ReactMarkdown remarkPlugins={[remarkGfm]}>{b.content || ''}</ReactMarkdown></div>
         if (b.type === 'table') return <TableBlock key={i} block={b} />
         if (b.type === 'chart') return <ChartCard key={i} chart={b.chart} onPin={onPinChart ? () => onPinChart(b.chart) : undefined} />
         return null

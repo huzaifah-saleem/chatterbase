@@ -3,11 +3,15 @@
 // PUT .../charts/<id>, onUnpin removing it - both optional).
 import { useState } from 'react'
 import ChartCanvas, { CHART_TYPES } from './ChartCanvas'
+import MapCanvas from './MapCanvas'
+import FlowMapCanvas from './FlowMapCanvas'
 
 const ICONS = { bar: '▊', line: '📈', pie: '◔', doughnut: '◯', radar: '✦' }
+const MAP_TYPES = ['map', 'od_map'] // geospatial - not interchangeable with the bar/line/pie/etc switcher
 
 export default function ChartCard({ chart, onTypeChange, onUnpin, onPin }) {
   const [type, setType] = useState(chart.type || 'bar')
+  const isMap = MAP_TYPES.includes(chart.type)
 
   const handleType = (t) => {
     setType(t)
@@ -18,21 +22,25 @@ export default function ChartCard({ chart, onTypeChange, onUnpin, onPin }) {
     <div className="card p-4 rise">
       <div className="flex items-start justify-between gap-3 mb-2">
         <h4 className="text-sm font-semibold text-ink">{chart.title}</h4>
-        <div className="flex gap-1">
-          {CHART_TYPES.map((t) => (
-            <button
-              key={t}
-              onClick={() => handleType(t)}
-              title={t}
-              className={`w-6 h-6 rounded text-xs flex items-center justify-center transition
-                ${type === t ? 'bg-accent text-white' : 'text-ink-dim hover:bg-edge hover:text-ink'}`}
-            >
-              {ICONS[t]}
-            </button>
-          ))}
-        </div>
+        {!isMap && (
+          <div className="flex gap-1">
+            {CHART_TYPES.map((t) => (
+              <button
+                key={t}
+                onClick={() => handleType(t)}
+                title={t}
+                className={`w-6 h-6 rounded text-xs flex items-center justify-center transition
+                  ${type === t ? 'bg-accent text-white' : 'text-ink-dim hover:bg-edge hover:text-ink'}`}
+              >
+                {ICONS[t]}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      <ChartCanvas type={type} title={chart.title} labels={chart.labels} data={chart.data} colors={chart.colors} />
+      {chart.type === 'map' && <MapCanvas points={chart.points} />}
+      {chart.type === 'od_map' && <FlowMapCanvas flows={chart.flows} />}
+      {!isMap && <ChartCanvas type={type} title={chart.title} labels={chart.labels} data={chart.data} colors={chart.colors} />}
       {(onPin || onUnpin) && (
         <div className="mt-3 flex justify-end gap-2">
           {onPin && (

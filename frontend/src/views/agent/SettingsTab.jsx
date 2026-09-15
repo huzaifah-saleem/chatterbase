@@ -23,6 +23,17 @@ export default function SettingsTab({ persona, onUpdated }) {
           <button className={btnPrimary + ' self-start'} onClick={() => setEditing(true)}>Edit</button>
         </div>
 
+        <div className="card p-4 flex flex-col gap-2">
+          <h3 className="text-sm font-semibold text-ink">Share</h3>
+          <p className="text-xs text-ink-dim">Export this agent's identity and skills as a file another Chatterbase instance can import. Chat/task history and the auto-generated database-knowledge skill are not included.</p>
+          <a
+            href={`/api/agent/personas/${persona.id}/export`}
+            className="text-xs px-3 py-1.5 rounded-lg bg-edge hover:bg-edge-bright text-ink transition self-start"
+          >
+            ⬇ Export Agent
+          </a>
+        </div>
+
         <div className="card p-4 flex flex-col gap-2 border-bad/30">
           <h3 className="text-sm font-semibold text-bad">Danger zone</h3>
           <p className="text-xs text-ink-dim">Permanently delete this agent, its skills, and its database binding.</p>

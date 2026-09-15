@@ -43,13 +43,21 @@ export const api = {
   createConversation: (first_message) => post('/api/conversations', { first_message }),
   getConversation: (id) => get(`/api/conversations/${id}`),
   updateConversation: (id, messages) => put(`/api/conversations/${id}`, { messages }),
+  renameConversation: (id, title) => put(`/api/conversations/${id}/rename`, { title }),
   deleteConversation: (id) => del(`/api/conversations/${id}`),
   chat: (message, history) => post('/api/chat', { message, history }),
+
+  // Reports
+  listReports: () => get('/api/reports'),
+  getReport: (id) => get(`/api/reports/${id}`),
+  renameReport: (id, title) => put(`/api/reports/${id}/rename`, { title }),
+  deleteReport: (id) => del(`/api/reports/${id}`),
 
   // Dashboards
   listDashboards: () => get('/api/dashboards'),
   createDashboard: (name) => post('/api/dashboards', { name }),
   getDashboard: (id) => get(`/api/dashboards/${id}`),
+  renameDashboard: (id, name) => put(`/api/dashboards/${id}/rename`, { name }),
   deleteDashboard: (id) => del(`/api/dashboards/${id}`),
   pinChart: (dashboardId, chart) => post(`/api/dashboards/${dashboardId}/charts`, chart),
   updateChartType: (dashboardId, chartId, type) => put(`/api/dashboards/${dashboardId}/charts/${chartId}`, { type }),
@@ -60,6 +68,7 @@ export const api = {
   createPersona: (persona) => post('/api/agent/personas', persona),
   updatePersona: (id, fields) => put(`/api/agent/personas/${id}`, fields),
   deletePersona: (id) => del(`/api/agent/personas/${id}`),
+  importPersona: (payload) => post('/api/agent/personas/import', payload),
 
   // Agent skills
   listSkills: (personaId) => get(`/api/agent/personas/${personaId}/skills`),
@@ -73,6 +82,7 @@ export const api = {
   startRun: (request_text, persona_id) => post('/api/agent/run', { request: request_text, persona_id }),
   getRun: (id) => get(`/api/agent/run/${id}`),
   resumeRun: (id, decision) => post(`/api/agent/run/${id}/resume`, { decision }),
+  renameRun: (id, title) => put(`/api/agent/run/${id}/rename`, { title }),
   deleteRun: (id) => del(`/api/agent/run/${id}`),
 
   // Agent chat (multi-turn) - W1
@@ -81,6 +91,7 @@ export const api = {
   getAgentChat: (personaId, chatId) => get(`/api/agent/personas/${personaId}/chats/${chatId}`),
   sendAgentChatMessage: (personaId, chatId, message) => post(`/api/agent/personas/${personaId}/chats/${chatId}/message`, { message }),
   resumeAgentChat: (personaId, chatId, decision) => post(`/api/agent/personas/${personaId}/chats/${chatId}/resume`, { decision }),
+  renameAgentChat: (personaId, chatId, title) => put(`/api/agent/personas/${personaId}/chats/${chatId}/rename`, { title }),
   deleteAgentChat: (personaId, chatId) => del(`/api/agent/personas/${personaId}/chats/${chatId}`),
 
   // Knowledge sync - W3

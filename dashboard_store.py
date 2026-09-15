@@ -96,6 +96,15 @@ def create_dashboard(name, charts=None):
     return dashboard
 
 
+def rename_dashboard(dashboard_id, name):
+    dashboard = get_dashboard(dashboard_id)
+    if dashboard is None:
+        raise FileNotFoundError(f"Dashboard {dashboard_id} not found")
+    dashboard["name"] = name
+    _save(dashboard)
+    return dashboard
+
+
 def delete_dashboard(dashboard_id):
     path = _path_for(dashboard_id)
     if not os.path.exists(path):
@@ -110,7 +119,14 @@ def _save(dashboard):
         json.dump(dashboard, f, indent=2)
 
 
-def pin_chart(dashboard_id, title, chart_type, labels, data, colors=None):
+def pin_chart(dashboard_id, title, chart_type, labels=None, data=None, colors=None, points=None, flows=None):
+    """labels/data/colors are for the Chart.js-backed types (bar/line/pie/
+    doughnut/radar); points/flows are for the Leaflet-backed geospatial
+    types ("map": a list of {lat, lng, label?, value?}; "od_map": a list of
+    {origin_lat, origin_lng, dest_lat, dest_lng, origin_label?, dest_label?,
+    value?}). Both sets of fields are always stored so a chart's own "type"
+    is the single source of truth for which fields the frontend reads -
+    simpler than a variant-typed entry shape."""
     dashboard = get_dashboard(dashboard_id)
     if dashboard is None:
         raise FileNotFoundError(f"Dashboard {dashboard_id} not found")
@@ -121,6 +137,8 @@ def pin_chart(dashboard_id, title, chart_type, labels, data, colors=None):
         "labels": labels,
         "data": data,
         "colors": colors,
+        "points": points,
+        "flows": flows,
     }
     dashboard["charts"].append(entry)
     _save(dashboard)

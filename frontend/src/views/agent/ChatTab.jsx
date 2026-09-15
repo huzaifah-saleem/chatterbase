@@ -10,6 +10,7 @@ import { streamAgentChat } from '../../lib/useAgentChatStream'
 import { Blocks } from '../../components/Blocks'
 import { PendingAction } from '../../components/PendingAction'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export default function ChatTab({ personaId }) {
   const [chats, setChats] = useState([])
@@ -42,6 +43,15 @@ export default function ChatTab({ personaId }) {
     try {
       await api.deleteAgentChat(personaId, id)
       if (id === activeId) newChat()
+      loadList()
+    } catch (e) { alert(e.message) }
+  }
+  const renameChat = async (chat, e) => {
+    e.stopPropagation()
+    const title = prompt('Rename chat:', chat.title)
+    if (!title || title === chat.title) return
+    try {
+      await api.renameAgentChat(personaId, chat.id, title)
       loadList()
     } catch (e) { alert(e.message) }
   }
@@ -119,7 +129,10 @@ export default function ChatTab({ personaId }) {
                 ${c.id === activeId ? 'bg-accent/15 text-accent-hot' : 'text-ink-dim hover:bg-panel hover:text-ink'}`}
             >
               <span className="truncate">{c.title}</span>
-              <button onClick={(e) => removeChat(c.id, e)} className="opacity-60 group-hover:opacity-100 text-ink-faint hover:text-bad transition shrink-0">&times;</button>
+              <span className="flex items-center gap-1 opacity-60 group-hover:opacity-100 shrink-0">
+                <button onClick={(e) => renameChat(c, e)} className="text-ink-faint hover:text-ink transition">✏️</button>
+                <button onClick={(e) => removeChat(c.id, e)} className="text-ink-faint hover:text-bad transition">&times;</button>
+              </span>
             </div>
           ))}
           {chats.length === 0 && <div className="px-3 py-2 text-xs text-ink-faint">No chats yet</div>}
@@ -137,7 +150,7 @@ export default function ChatTab({ personaId }) {
                   <div className={`rounded-2xl px-4 py-3 max-w-[85%] ${t.role === 'user' ? 'bg-accent text-white text-sm' : 'card w-full'}`}>
                     {t.role === 'user'
                       ? t.content
-                      : t.blocks ? <Blocks blocks={t.blocks} /> : <div className="md text-sm text-ink"><ReactMarkdown>{t.content || ''}</ReactMarkdown></div>}
+                      : t.blocks ? <Blocks blocks={t.blocks} /> : <div className="md text-sm text-ink"><ReactMarkdown remarkPlugins={[remarkGfm]}>{t.content || ''}</ReactMarkdown></div>}
                   </div>
                 </div>
               ))}
@@ -160,7 +173,7 @@ export default function ChatTab({ personaId }) {
                 <div className="flex justify-start">
                   <div className="card px-4 py-3 max-w-[85%] w-full text-sm text-ink-dim">
                     {streamingText ? (
-                      <div className="md text-sm text-ink"><ReactMarkdown>{streamingText}</ReactMarkdown></div>
+                      <div className="md text-sm text-ink"><ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingText}</ReactMarkdown></div>
                     ) : (
                       <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-accent pulse" /> Thinking...</div>
                     )}

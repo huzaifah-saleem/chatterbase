@@ -40,6 +40,7 @@ data/agent_skills/
 data/agent_checkpoints.sqlite*
 data/agent_chats/
 data/activity.sqlite*
+data/reports/
 
 # Frontend build artifacts
 frontend/node_modules/
