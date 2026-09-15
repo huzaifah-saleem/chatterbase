@@ -11,5 +11,13 @@ data/*.json
 data/*.json.migrated
 data/dashboards/*.json
 data/plans/*.json
+data/agent_runs/*.json
+data/agent_personas/*.json
+data/agent_skills/
+data/agent_checkpoints.sqlite*
+data/agent_chats/
+data/activity.sqlite*
+frontend/node_modules/
+frontend/dist/
 *.mov
 README.md

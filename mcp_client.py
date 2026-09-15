@@ -5,6 +5,7 @@ import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
+import cache
 import mcp_registry
 
 # Display name (as shown to the LLM / UI) -> {"server": server_dict, "real_name": str}.
@@ -15,7 +16,16 @@ tool_routing = {}
 
 async def _fetch_server_tools(server):
     """Return (server, tools, error) for one server - tools is None on
-    failure, so one dead server can't blank out the others' tools."""
+    failure, so one dead server can't blank out the others' tools.
+
+    The network round-trip is cached (cache.py, 60s TTL, keyed by server
+    URL) - callers (get_mcp_tools, get_server_statuses) still recompute
+    their own aggregation/routing from this every time, so a cache hit here
+    can never leave tool_routing stale, only skip the actual MCP round trip."""
+    cache_key = f"mcp:tools:{server['url']}"
+    cached_tools = await cache.get(cache_key)
+    if cached_tools is not None:
+        return server, cached_tools, None
     try:
         async with streamablehttp_client(server["url"], headers=server.get("headers") or None) as (read_stream, write_stream, _):
             async with ClientSession(read_stream, write_stream) as session:
@@ -25,6 +35,7 @@ async def _fetch_server_tools(server):
                     {"name": t.name, "description": t.description, "inputSchema": t.inputSchema}
                     for t in tools_result.tools
                 ]
+                await cache.set(cache_key, tools, 60)
                 return server, tools, None
     except Exception as e:
         return server, None, str(e)
